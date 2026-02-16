@@ -35,11 +35,15 @@ const ModelGroupBuilder = ({
         return l2Values.filter((value) => !assignedL2.has(value))
     }, [l2Values, assignedL2])
 
+    const [visibleCount, setVisibleCount] = useState(50)
+
     const filteredL2 = useMemo(() => {
-        return unassignedL2.filter((value) =>
-            value.toLowerCase().includes(search.toLowerCase()),
-        )
-    }, [unassignedL2, search])
+        return unassignedL2
+            .filter((value) =>
+                value.toLowerCase().includes(search.toLowerCase()),
+            )
+            .slice(0, visibleCount)
+    }, [unassignedL2, search, visibleCount])
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -233,6 +237,23 @@ const ModelGroupBuilder = ({
                                 placeholder="Search L2 values"
                                 className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
                             />
+                            <div className="mt-3 flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                                <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+                                    Show: {visibleCount}
+                                </span>
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max={Math.max(500, unassignedL2.length)}
+                                    step="10"
+                                    value={visibleCount}
+                                    onChange={(e) => setVisibleCount(parseInt(e.target.value))}
+                                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                />
+                                <span className="text-xs text-slate-400 whitespace-nowrap">
+                                    {unassignedL2.length} Total
+                                </span>
+                            </div>
                             <div className="mt-4 flex max-h-[220px] flex-wrap gap-2 overflow-auto rounded-xl border border-slate-200 bg-white p-3">
                                 {filteredL2.length === 0 && (
                                     <span className="text-xs text-slate-400">
