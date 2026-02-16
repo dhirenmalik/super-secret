@@ -1,0 +1,12 @@
+{
+    "model_name": "all-MiniLM-L6-v2",
+    "threshold": 0.85,
+    "embedding_match_threshold": 0.9,
+    "fuzzy_match_threshold": 85,
+    "parent_match_threshold": 90,
+    "use_parent_lookup": false,
+    "private_brands_path": "private_brands.csv",
+    "cache_path": "parent_cache.pkl",
+    "input_sheet": "9agg_exclude_flag_v1", 
+    "output_sheet": "brand_analysis"
+  }
