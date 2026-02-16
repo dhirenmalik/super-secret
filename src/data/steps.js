@@ -1,0 +1,414 @@
+/**
+ * Structured data for all 11 steps from the "Data ETL & EDA" sheet.
+ */
+const steps = [
+    {
+        id: 1,
+        slug: 'data-staging',
+        name: 'Data Staging',
+        icon: 'Database',
+        phase: 'ETL',
+        tasks: [
+            'Login to VDI (Walmart cloud)',
+            'Run queries specific to category',
+            'Data download',
+        ],
+        automationNotes: [
+            'Due to large data files queries forcefully stopped',
+            'Need to split time period to pull data files',
+            'Multiple data files need to pull i.e. Weekly, Daily, Monthly',
+        ],
+    },
+    {
+        id: 2,
+        slug: 'data-pull',
+        name: 'Data Pull',
+        icon: 'CloudDownload',
+        phase: 'ETL',
+        tasks: [
+            "Upload files from VDI to IG's cloud",
+            'Download data from cloud to local systems',
+        ],
+        automationNotes: [
+            "No access or authority to work directly on client's cloud or internal cloud",
+        ],
+    },
+    {
+        id: 3,
+        slug: 'data-platform-connection',
+        name: 'Data Platform Connection',
+        icon: 'Plug',
+        phase: 'ETL',
+        tasks: [
+            'Multiple times download & upload data',
+        ],
+        automationNotes: [
+            'If we can get DB access on client site, we can fully automate it',
+        ],
+    },
+    {
+        id: 4,
+        slug: 'kickoff-report',
+        name: 'Kick-off Report',
+        icon: 'FileBarChart',
+        phase: 'EDA',
+        tasks: [
+            'Develop report based on categories & sub-categories, their co-relations, sales/units/spends etc',
+            'Suggest model groups to decide',
+        ],
+        automationNotes: [],
+    },
+    {
+        id: 5,
+        slug: 'kickoff-report-review',
+        name: 'Kick-off Report Review',
+        icon: 'MessageSquare',
+        phase: 'EDA',
+        tasks: [
+            'Review model groupings',
+            'Discuss L2/L3 sub-categories to shift internally',
+        ],
+        automationNotes: [
+            'Model groupings can be excluded/combined',
+            'Discussions on L2/L3s (sub-categories) to shift internally',
+            'Dependency on Walmart to finalise model groups & sub-categories under each model group during review meetings',
+        ],
+    },
+    {
+        id: 6,
+        slug: 'exclude-flag-analysis',
+        name: 'Exclude Flag Analysis',
+        icon: 'Filter',
+        phase: 'EDA',
+        tasks: [
+            'Standardized template to consolidate brands using historical FY24–FY26 mappings and exclude private/mapping-issue brands',
+        ],
+        automationNotes: [
+            'To check recommendations from agent to confirm the exclusion & inclusion of brands',
+        ],
+    },
+    {
+        id: 7,
+        slug: 'exclude-flag-review',
+        name: 'Exclude Flag Review',
+        icon: 'CheckSquare',
+        phase: 'EDA',
+        tasks: [
+            'Confirm brands to be considered, combined or excluded for relevant sales & spends coverage',
+        ],
+        automationNotes: [
+            'Confirmation on brands to be considered, combined or excluded for relevant sales & spends coverage',
+            'Dependency on Walmart to finalise brands to be included in modeling',
+        ],
+    },
+    {
+        id: 8,
+        slug: 'brand-stacks-creation',
+        name: 'Brand Stacks Creation',
+        icon: 'Layers',
+        phase: 'EDA',
+        tasks: [
+            'Create Total category stack',
+            'Create aggregated brand stack i.e. Data prep for modeling',
+        ],
+        automationNotes: [],
+    },
+    {
+        id: 9,
+        slug: 'discovery-tool-analysis',
+        name: 'Discovery Tool Analysis',
+        icon: 'LineChart',
+        phase: 'EDA',
+        tasks: [
+            'Create report with trends, charts, comparison with Raw data at total and Variable level',
+        ],
+        automationNotes: [],
+    },
+    {
+        id: 10,
+        slug: 'tool-review',
+        name: 'Tool Review',
+        icon: 'Settings',
+        phase: 'EDA',
+        tasks: [
+            'Customisation – Merge or remove tactics',
+            'Manual calculations to adjust data due to data discrepancy',
+            'Capping of any peak in any particular variable',
+        ],
+        automationNotes: [
+            'Dependency on Walmart to make calculations to rectify irregular trends at tactic level',
+        ],
+    },
+    {
+        id: 11,
+        slug: 'eda-email-report',
+        name: 'EDA Email Report',
+        icon: 'Mail',
+        phase: 'EDA',
+        tasks: [
+            'Generated through notebook to create and populate all six tables and key insights in WMC fixed format, reducing manual effort and turnaround time',
+        ],
+        automationNotes: [],
+    },
+    // Model Building Phase
+    {
+        id: 12,
+        slug: 'eda-code-run',
+        name: 'EDA Code Run',
+        icon: 'Code',
+        phase: 'Model Building',
+        tasks: [
+            'Notebook for Model preliminary requirements check',
+        ],
+        automationNotes: [
+            'All tactics with spend to be considered as it is in model',
+        ],
+    },
+    {
+        id: 13,
+        slug: 'category-config',
+        name: 'Category Config',
+        icon: 'Settings',
+        phase: 'Model Building',
+        tasks: [
+            'Notebook for populating model parameters like priors & historical constraints',
+        ],
+        automationNotes: [
+            'Priors and iRoAS constraints to be based on benchmark model from last year',
+            'Priors needs to be changed, if fit is not appropriate',
+        ],
+    },
+    {
+        id: 14,
+        slug: 'dummy-selection',
+        name: 'Dummy Selection',
+        icon: 'List',
+        phase: 'Model Building',
+        tasks: [
+            'Base fixing i.e. Non-media variables inclusion',
+            'Model fit KPIs check',
+            'Events/Dummies inclusions/exclusions',
+        ],
+        automationNotes: [
+            'Events should be present across the years with same polarity',
+        ],
+    },
+    {
+        id: 15,
+        slug: 'dummy-selection-validation',
+        name: 'Dummy Validation',
+        icon: 'CheckCircle',
+        phase: 'Model Building',
+        tasks: [],
+        automationNotes: [
+            'Dummies/ Events needs to be changed, if fit is not appropriate',
+            'Whether to include particular dummy/event or not',
+        ],
+    },
+    {
+        id: 16,
+        slug: 'best-base-selection',
+        name: 'Best Base Selection',
+        icon: 'Star',
+        phase: 'Model Building',
+        tasks: [
+            'Finalise base with best R-sqaure & lowest MAPE out of 10 bases',
+            'Top 3 bases will be considered for media inclusion',
+        ],
+        automationNotes: [
+            'Base R2 > 80% and MAPE < 15',
+        ],
+    },
+    {
+        id: 17,
+        slug: 'saturation-thresholds',
+        name: 'Saturation & Thresholds',
+        icon: 'Sliders',
+        phase: 'Model Building',
+        tasks: [
+            'Add media variables',
+            'S-curve creation for media variables',
+        ],
+        automationNotes: [
+            'Ensure all granular media variables remain positive through hyperparameter tuning',
+        ],
+    },
+    {
+        id: 18,
+        slug: 's-curve-adjustments',
+        name: 'S-curve Adjustments',
+        icon: 'Activity',
+        phase: 'Model Building',
+        tasks: [
+            'If agent unable to dump solutions then based on recommendations, modeler needs to change parameters',
+        ],
+        automationNotes: [
+            'Threshold & Saturation adjustments, if YoY iRoAS are not alligned as per Spend change for multiple individual tactics',
+        ],
+    },
+    {
+        id: 19,
+        slug: 'model-fit-overall',
+        name: 'Model Fit - Overall',
+        icon: 'BarChart2',
+        phase: 'Model Building',
+        tasks: [
+            'Allignment for Actual Vs Predicted',
+            'R2 / MAPE under well defined limits',
+            'Consistent dummies across years with selected base variables',
+        ],
+        automationNotes: [
+            'Actual Vs Predicted should look good visually i.e. no over or under predictions',
+            'Dummies should be consistent across years, in case of split dummies',
+            'Events should have proper explaination, if used in base fixing',
+            'Media Vs Non-media corelation',
+            'Internal media corelation allignment',
+        ],
+    },
+    {
+        id: 20,
+        slug: 'model-validation-media',
+        name: 'Model Validation - Media',
+        icon: 'TrendingUp',
+        phase: 'Model Building',
+        tasks: [
+            "Model performance for 3 different time periods & it's comparison",
+            'Calculations of contributions & iRoAS for each media tactic for different time periods',
+        ],
+        automationNotes: [
+            'iRoAS aligned with price points',
+            'YoY checks for iRoAS, spends & cost',
+            'iRoAS ranking & benchmarking comparison',
+            'S-curve headroom assessment for optimisation',
+        ],
+    },
+    {
+        id: 21,
+        slug: 'final-model-validation',
+        name: 'Final Model Validation',
+        icon: 'Award',
+        phase: 'Model Building',
+        tasks: [
+            'If agent unable to find solution based on defined criterias, then modeler needs to re-run from S-curve adjustments',
+        ],
+        automationNotes: [
+            'Model results adjustment to support business questions at media variable level',
+            'YoY changes at media level',
+            'Re-run due to adjustments in model results',
+            'S-curve changes, if required, to consider budget constraints for optimisation stage',
+        ],
+    },
+    {
+        id: 22,
+        slug: 'reports-prep',
+        name: 'Reports Prep',
+        icon: 'FileText',
+        phase: 'Model Building',
+        tasks: [
+            'Model Review report for WMC sales review meeting',
+            'Model Result report for WMC discussion meeting',
+        ],
+        automationNotes: [],
+    },
+    // Optimisation Phase
+    {
+        id: 23,
+        slug: 'input-prep-optimisation',
+        name: 'Input Prep & Run',
+        icon: 'PlayCircle',
+        phase: 'Optimisation',
+        tasks: [
+            'Run multiple scenarios from 1x to 1.75x by increasing spends among media variables to measure lifts',
+        ],
+        automationNotes: [],
+    },
+    {
+        id: 24,
+        slug: 'scenario-alignment',
+        name: 'Scenario Alignment',
+        icon: 'GitMerge',
+        phase: 'Optimisation',
+        tasks: [
+            'Differential evolution to adjust bounds to allocate budget among media',
+            'One shot optimisation technique to generate lifts',
+        ],
+        automationNotes: [
+            'Spend trend should be consitent across media & scenarios',
+            'no drastic spend jump across media & scenarios',
+            'Lifts should be in trend across scenarios',
+            'Spend allocation should be consistent with iRoAS rankings',
+            'Multiple criterias in spend adjustment requires multiple runs',
+        ],
+    },
+    {
+        id: 25,
+        slug: 'optimisation-review',
+        name: 'Optimisation Review',
+        icon: 'Eye',
+        phase: 'Optimisation',
+        tasks: [
+            'Change on spend distribution to increase or decrease lifts in different scenarios',
+        ],
+        automationNotes: [
+            'Optimisation review with client dependency to adjust results based on suggested changes',
+        ],
+    },
+    // Reporting Phase
+    {
+        id: 26,
+        slug: 'model-deck-input',
+        name: 'Deck Generation',
+        icon: 'FileInput',
+        phase: 'Reporting',
+        tasks: [
+            'Notebooks to run to prepare input files',
+        ],
+        automationNotes: [],
+    },
+    {
+        id: 27,
+        slug: 'automation-code',
+        name: 'Automation Code',
+        icon: 'Cpu',
+        phase: 'Reporting',
+        tasks: [],
+        automationNotes: [],
+    },
+    {
+        id: 28,
+        slug: 'tableau-population',
+        name: 'Tableau Population',
+        icon: 'Monitor',
+        phase: 'Reporting',
+        tasks: [
+            'Review optimization',
+            'Review iRoAS',
+            'Review IRPM',
+        ],
+        automationNotes: [
+            'Change the Brand in place of top spend brand',
+            'Combine few tactics',
+            'Sort tactics based on ranking, CPIT',
+            'Including additional seasonal events with lift calculations, etc',
+            'Allignment in terms of fonts, scale, color, size etc',
+            'QC the exported power point deck',
+        ],
+    },
+    {
+        id: 29,
+        slug: 'documentation',
+        name: 'Documentation',
+        icon: 'Book',
+        phase: 'Reporting',
+        tasks: [
+            'Multiple documents created :',
+            'The documents include – final stack, optimization results, raw vs transformed tactic impressions & spend charts, coefficient summary, model stats, media contribution, etc',
+            'Process Flow & Key Decisions',
+            'Variable & dummies description file',
+            'Document upload on Walmart cloud',
+        ],
+        automationNotes: [],
+    },
+];
+
+export default steps;

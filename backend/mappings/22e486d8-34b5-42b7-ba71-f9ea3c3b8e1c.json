@@ -1,0 +1,58 @@
+{
+  "file_id": "22e486d8-34b5-42b7-ba71-f9ea3c3b8e1c",
+  "groups": [
+    {
+      "group_id": 1,
+      "group_name": "Vegetables & Roots",
+      "l2_values": [
+        "POTATOES ONIONS GARLIC",
+        "COOKING VEGTABLES",
+        "TRUCK VEG CHILIS",
+        "PACKAGED VEGETABLES",
+        "VEGETABLES - D84",
+        "PRODUCE L2",
+        "PR PRODUCE",
+        "MISC D84 AND 94"
+      ]
+    },
+    {
+      "group_id": 2,
+      "group_name": "Fruits",
+      "l2_values": [
+        "CITRUS",
+        "APPLES PEARS CHERRIES",
+        "TOMATOES",
+        "BANANAS PINEAPPLES",
+        "STRAWBERRIES",
+        "GRAPES L2",
+        "MELONS",
+        "CUT FRUIT",
+        "STONE FRUIT",
+        "AVOCADOS L2",
+        "MIXED BERRIES"
+      ]
+    },
+    {
+      "group_id": 3,
+      "group_name": "Mushrooms & Snacks",
+      "l2_values": [
+        "VAV MUSHROOMS DDV",
+        "PROTEIN SNACKS",
+        "DRIED FRUIT NUTS SNACKS"
+      ]
+    },
+    {
+      "group_id": 4,
+      "group_name": "Others (Excl)",
+      "l2_values": [
+        "ACTIVEWEAR ECOMM WOMENS",
+        "BEVERAGE VEGETARIAN",
+        "D94 MISC L2",
+        "DEPT LEVEL SALES",
+        "WOMENS",
+        "RICE AND BEANS"
+      ]
+    }
+  ],
+  "updated_at": "2026-02-16T08:21:51.762765Z"
+}
