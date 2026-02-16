@@ -1,47 +1,121 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/PageHeader';
 import TaskList from '../components/TaskList';
 import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
+import { fetchExcludeAnalysis, updateRelevance } from '../api/eda';
 
 const step = steps.find((s) => s.id === 6);
 
-const mockBrands = [
-    { id: 1, name: 'Premium Brand A', fy24: 'Mapped', fy25: 'Mapped', fy26: 'Mapped', status: 'included', sales: '12.4%', spends: '14.2%' },
-    { id: 2, name: 'Value Brand B', fy24: 'Mapped', fy25: 'Mapped', fy26: 'Mapped', status: 'included', sales: '9.8%', spends: '8.1%' },
-    { id: 3, name: 'Private Label C', fy24: 'Mapped', fy25: 'Issue', fy26: 'Mapped', status: 'excluded', sales: '15.2%', spends: '0.5%' },
-    { id: 4, name: 'Brand D', fy24: 'Mapped', fy25: 'Mapped', fy26: 'Mapped', status: 'included', sales: '7.5%', spends: '9.3%' },
-    { id: 5, name: 'Niche Brand E', fy24: 'Missing', fy25: 'Mapped', fy26: 'Mapped', status: 'excluded', sales: '2.1%', spends: '1.8%' },
-    { id: 6, name: 'Emerging Brand F', fy24: 'Mapped', fy25: 'Mapped', fy26: 'Issue', status: 'review', sales: '5.3%', spends: '6.7%' },
-];
-
 export default function ExcludeFlagAnalysis() {
-    const [brands, setBrands] = useState(mockBrands);
+    const [brands, setBrands] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [sortConfig, setSortConfig] = useState({ key: 'sales', direction: 'desc' });
 
-    const toggleBrand = (id) => {
-        setBrands(
-            brands.map((b) =>
-                b.id === id
-                    ? { ...b, status: b.status === 'included' ? 'excluded' : 'included' }
-                    : b
-            )
-        );
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            const data = await fetchExcludeAnalysis('L3');
+
+            const mappedBrands = data.data.map((item, index) => ({
+                id: index,
+                name: item.Category,
+                status: item.Relevant === 'YES' ? 'included' : 'excluded',
+                // Metrics
+                sales: item.Total_Sales,
+                salesShare: item.Sales_Share_Percentage,
+                unitsShare: item.Unit_Share_Percentage,
+                avgPrice: item.AVG_PRICE,
+                searchSpendShare: item.Search_Spend_Share_Percentage,
+                offDisplaySpendShare: item.OFFDisplay_Spend_Share_Percentage,
+                onDisplaySpendShare: item.ONDisplay_Spend_Share_Percentage,
+            }));
+            setBrands(mappedBrands);
+            setError(null);
+        } catch (err) {
+            console.error("Failed to load subcategory analysis:", err);
+            setError("Failed to load data. Please ensure backend is running.");
+        } finally {
+            setLoading(false);
+        }
     };
+
+    const toggleBrand = async (brand) => {
+        const newStatus = brand.status === 'included' ? 'excluded' : 'included';
+        const isRelevant = newStatus === 'included';
+
+        setBrands(prev => prev.map(b =>
+            b.id === brand.id ? { ...b, status: newStatus } : b
+        ));
+
+        try {
+            await updateRelevance(brand.name, isRelevant);
+        } catch (err) {
+            console.error("Failed to update relevance:", err);
+            setBrands(prev => prev.map(b =>
+                b.id === brand.id ? { ...b, status: brand.status } : b
+            ));
+            alert("Failed to update status. Please try again.");
+        }
+    };
+
+    const handleSort = (key) => {
+        let direction = 'desc';
+        if (sortConfig.key === key && sortConfig.direction === 'desc') {
+            direction = 'asc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedBrands = useMemo(() => {
+        const sorted = [...brands];
+        if (sortConfig.key) {
+            sorted.sort((a, b) => {
+                const aValue = a[sortConfig.key];
+                const bValue = b[sortConfig.key];
+
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return sorted;
+    }, [brands, sortConfig]);
 
     const included = brands.filter((b) => b.status === 'included');
     const excluded = brands.filter((b) => b.status === 'excluded');
+
+    const SortIcon = ({ column }) => {
+        if (sortConfig.key !== column) return <span className="text-slate-300 ml-1">⇅</span>;
+        return <span className="text-blue-600 ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
+    };
+
+    const thStyle = { cursor: 'pointer', userSelect: 'none' };
+
+    if (loading) {
+        return <div className="p-8 text-center">Loading analysis data...</div>;
+    }
+
+    if (error) {
+        return <div className="p-8 text-center text-red-600">Error: {error}</div>;
+    }
 
     return (
         <div>
             <PageHeader
                 title={step.name}
-                subtitle="Consolidate brands using historical FY24–FY26 mappings and flag brands for exclusion."
+                subtitle="Analyze and flag subcategories (L3) for inclusion based on key metrics."
                 breadcrumb={['Dashboard', 'EDA Phase', step.name]}
                 stepNumber={step.id}
                 phase={step.phase}
             >
-                <StatusBadge status="not_started" />
+                <StatusBadge status="in_progress" />
             </PageHeader>
 
             {/* Summary Stats */}
@@ -52,7 +126,7 @@ export default function ExcludeFlagAnalysis() {
                     </div>
                     <div>
                         <div className="stat-value">{brands.length}</div>
-                        <div className="stat-label">Total Brands</div>
+                        <div className="stat-label">Total Subcategories</div>
                     </div>
                 </div>
                 <div className="stat-card">
@@ -83,7 +157,7 @@ export default function ExcludeFlagAnalysis() {
                             <div className="card-title-icon blue">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M9 11l3 3L22 4" />
-                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                                 </svg>
                             </div>
                             Tasks
@@ -91,38 +165,9 @@ export default function ExcludeFlagAnalysis() {
                     </div>
                     <TaskList tasks={step.tasks} />
                 </div>
-
-                {/* Historical Mapping Summary */}
-                <div className="card">
-                    <div className="card-header">
-                        <div className="card-title">
-                            <div className="card-title-icon yellow">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M12 6v6l4 2" />
-                                </svg>
-                            </div>
-                            Historical Mapping Overview
-                        </div>
-                    </div>
-                    <div style={{ fontSize: '14px', color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--color-border-light)' }}>
-                            <span>FY24 Brands Mapped</span>
-                            <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{brands.filter(b => b.fy24 === 'Mapped').length}/{brands.length}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--color-border-light)' }}>
-                            <span>FY25 Brands Mapped</span>
-                            <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{brands.filter(b => b.fy25 === 'Mapped').length}/{brands.length}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                            <span>FY26 Brands Mapped</span>
-                            <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{brands.filter(b => b.fy26 === 'Mapped').length}/{brands.length}</span>
-                        </div>
-                    </div>
-                </div>
             </div>
 
-            {/* Brand Table */}
+            {/* Subcategory Table */}
             <div className="card" style={{ marginTop: '20px' }}>
                 <div className="card-header">
                     <div className="card-title">
@@ -131,56 +176,42 @@ export default function ExcludeFlagAnalysis() {
                                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
                             </svg>
                         </div>
-                        Brand Include/Exclude Flags
+                        Subcategory Inclusion/Exclusion
                     </div>
                 </div>
                 <div className="table-container">
                     <table className="table">
                         <thead>
                             <tr>
-                                <th>Brand</th>
-                                <th>FY24</th>
-                                <th>FY25</th>
-                                <th>FY26</th>
-                                <th>Sales %</th>
-                                <th>Spends %</th>
-                                <th>Status</th>
+                                <th onClick={() => handleSort('name')} style={thStyle}>Subcategory <SortIcon column="name" /></th>
+                                <th onClick={() => handleSort('sales')} style={thStyle}>Total Sales <SortIcon column="sales" /></th>
+                                <th onClick={() => handleSort('avgPrice')} style={thStyle}>Avg Price <SortIcon column="avgPrice" /></th>
+                                <th onClick={() => handleSort('salesShare')} style={thStyle}>Sales % <SortIcon column="salesShare" /></th>
+                                <th onClick={() => handleSort('unitsShare')} style={thStyle}>Units % <SortIcon column="unitsShare" /></th>
+                                <th onClick={() => handleSort('searchSpendShare')} style={thStyle}>Search Spend % <SortIcon column="searchSpendShare" /></th>
+                                <th onClick={() => handleSort('offDisplaySpendShare')} style={thStyle}>Off-Display % <SortIcon column="offDisplaySpendShare" /></th>
+                                <th onClick={() => handleSort('onDisplaySpendShare')} style={thStyle}>On-Display % <SortIcon column="onDisplaySpendShare" /></th>
+                                <th onClick={() => handleSort('status')} style={thStyle}>Status <SortIcon column="status" /></th>
                                 <th>Include</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {brands.map((brand) => (
+                            {sortedBrands.map((brand) => (
                                 <tr key={brand.id}>
                                     <td style={{ fontWeight: 600 }}>{brand.name}</td>
+                                    <td>${brand.sales.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                                    <td>${brand.avgPrice.toFixed(2)}</td>
+                                    <td>{brand.salesShare.toFixed(2)}%</td>
+                                    <td>{brand.unitsShare.toFixed(2)}%</td>
+                                    <td>{brand.searchSpendShare.toFixed(2)}%</td>
+                                    <td>{brand.offDisplaySpendShare.toFixed(2)}%</td>
+                                    <td>{brand.onDisplaySpendShare.toFixed(2)}%</td>
                                     <td>
-                                        <span style={{
-                                            padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '12px', fontWeight: 600,
-                                            background: brand.fy24 === 'Mapped' ? 'var(--color-success-light)' : 'var(--color-danger-light)',
-                                            color: brand.fy24 === 'Mapped' ? 'var(--color-success)' : 'var(--color-danger)',
-                                        }}>{brand.fy24}</span>
-                                    </td>
-                                    <td>
-                                        <span style={{
-                                            padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '12px', fontWeight: 600,
-                                            background: brand.fy25 === 'Mapped' ? 'var(--color-success-light)' : brand.fy25 === 'Issue' ? 'var(--color-warning-light)' : 'var(--color-danger-light)',
-                                            color: brand.fy25 === 'Mapped' ? 'var(--color-success)' : brand.fy25 === 'Issue' ? 'var(--color-warning)' : 'var(--color-danger)',
-                                        }}>{brand.fy25}</span>
-                                    </td>
-                                    <td>
-                                        <span style={{
-                                            padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '12px', fontWeight: 600,
-                                            background: brand.fy26 === 'Mapped' ? 'var(--color-success-light)' : brand.fy26 === 'Issue' ? 'var(--color-warning-light)' : 'var(--color-danger-light)',
-                                            color: brand.fy26 === 'Mapped' ? 'var(--color-success)' : brand.fy26 === 'Issue' ? 'var(--color-warning)' : 'var(--color-danger)',
-                                        }}>{brand.fy26}</span>
-                                    </td>
-                                    <td>{brand.sales}</td>
-                                    <td>{brand.spends}</td>
-                                    <td>
-                                        <StatusBadge status={brand.status === 'included' ? 'completed' : brand.status === 'review' ? 'in_progress' : 'blocked'} />
+                                        <StatusBadge status={brand.status === 'included' ? 'completed' : 'blocked'} />
                                     </td>
                                     <td>
                                         <label className="toggle-switch">
-                                            <input type="checkbox" checked={brand.status === 'included'} onChange={() => toggleBrand(brand.id)} />
+                                            <input type="checkbox" checked={brand.status === 'included'} onChange={() => toggleBrand(brand)} />
                                             <span className="toggle-slider" />
                                         </label>
                                     </td>

@@ -77,11 +77,11 @@ const steps = [
     {
         id: 6,
         slug: 'exclude-flag-analysis',
-        name: 'Exclude Flag Analysis',
+        name: 'Subcategory Analysis',
         icon: 'Filter',
         phase: 'EDA',
         tasks: [
-            'Standardized template to consolidate brands using historical FY24–FY26 mappings and exclude private/mapping-issue brands',
+            'Analyze subcategories (L3) for exclusion/inclusion based on sales, spend, and unit shares.',
         ],
         automationNotes: [
             'To check recommendations from agent to confirm the exclusion & inclusion of brands',

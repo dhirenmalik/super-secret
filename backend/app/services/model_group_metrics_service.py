@@ -31,7 +31,8 @@ def get_model_group_metrics(
     group_names: List[str],
     metric: str = "sales",
     include_spends: bool = True,
-    window_weeks: int = 104
+    window_weeks: int = 104,
+    l2_values: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     # 1. Load Data
     df = load_csv(file_id)
@@ -56,6 +57,10 @@ def get_model_group_metrics(
     # Standardize L2
     df[L2_COLUMN] = df[L2_COLUMN].fillna("UNKNOWN").astype(str).str.strip()
     df.loc[df[L2_COLUMN] == "", L2_COLUMN] = "UNKNOWN"
+    
+    # Filter by L2 if requested
+    if l2_values:
+        df = df[df[L2_COLUMN].isin(l2_values)]
     
     # Coerce numeric columns
     # Ensure both sales and units are present and numeric for YoY calc
@@ -100,7 +105,7 @@ def get_model_group_metrics(
          return {
             "file_id": file_id,
             "series": [],
-            "yoy": {"metric_yoy_pct": None, "spends_yoy_pct": None},
+            "yoy": {"sales_yoy_pct": None, "units_yoy_pct": None, "spends_yoy_pct": None},
             "meta": {"weeks_returned": 0}
         }
 

@@ -6,6 +6,7 @@ class ModelGroupMetricsRequest(BaseModel):
     metric: str = "sales"  # "sales" or "units"
     include_spends: bool = True
     window_weeks: int = 104
+    l2_values: Optional[List[str]] = None
 
 class WeeklyMetricSeries(BaseModel):
     week_start_date: str

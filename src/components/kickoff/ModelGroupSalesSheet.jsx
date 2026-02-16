@@ -9,7 +9,7 @@ import {
     ResponsiveContainer,
     Legend,
 } from 'recharts'
-import { fetchModelGroups, fetchModelGroupWeeklyMetrics } from '../../api/kickoff'
+import { fetchModelGroups, fetchModelGroupWeeklyMetrics, fetchL2Values } from '../../api/kickoff'
 
 const CHART_COLORS = {
     sales: '#0f172a',
@@ -37,7 +37,13 @@ const ModelGroupSalesSheet = ({ hasFile, fileId }) => {
     const [metricsData, setMetricsData] = useState(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
-    const [selected, setSelected] = useState([])
+
+    // Selection State
+    // activeL2s: Set of all selected L2 strings
+    const [activeL2s, setActiveL2s] = useState(new Set())
+    // expandedGroups: Set of expanded group names
+    const [expandedGroups, setExpandedGroups] = useState(new Set())
+
     const [search, setSearch] = useState('')
     const [metric, setMetric] = useState('sales')
 
@@ -45,28 +51,50 @@ const ModelGroupSalesSheet = ({ hasFile, fileId }) => {
     useEffect(() => {
         if (!fileId) {
             setGroupsData(null)
+            setActiveL2s(new Set())
             return
         }
 
-        const loadGroups = async () => {
+        const loadData = async () => {
             try {
                 const response = await fetchModelGroups(fileId)
                 const groups = response.groups || []
-                const groupNames = groups.map((g) => g.group_name)
-                setGroupsData({ groups, groupNames })
-                // Default selection
-                setSelected(groupNames.slice(0, 3))
+
+                // Map L2s for easy lookup
+                // groups structure: [{ group_name, l2_values: [] }]
+                setGroupsData(groups)
+
+                // Default selection: First 3 groups, all their L2s
+                const initialL2s = new Set()
+                groups.slice(0, 3).forEach(g => {
+                    g.l2_values.forEach(l2 => initialL2s.add(l2))
+                })
+                setActiveL2s(initialL2s)
+
+                // Expand first group by default
+                if (groups.length > 0) {
+                    setExpandedGroups(new Set([groups[0].group_name]))
+                }
+
             } catch (err) {
                 console.error(err)
                 setError('Unable to load model groups')
             }
         }
-        loadGroups()
+        loadData()
     }, [fileId])
+
+    // Derived: List of selected group names (based on whether ANY of their L2s are selected)
+    const selectedGroupNames = useMemo(() => {
+        if (!groupsData) return []
+        return groupsData
+            .filter(g => g.l2_values.some(l2 => activeL2s.has(l2)))
+            .map(g => g.group_name)
+    }, [groupsData, activeL2s])
 
     // 2. Fetch Metrics when dependencies change
     useEffect(() => {
-        if (!fileId || !selected.length) {
+        if (!fileId || selectedGroupNames.length === 0) {
             setMetricsData(null)
             return
         }
@@ -76,10 +104,11 @@ const ModelGroupSalesSheet = ({ hasFile, fileId }) => {
             setError('')
             try {
                 const response = await fetchModelGroupWeeklyMetrics(fileId, {
-                    group_names: selected,
+                    group_names: selectedGroupNames,
                     metric: metric,
                     include_spends: true,
                     window_weeks: 104,
+                    l2_values: Array.from(activeL2s),
                 })
                 setMetricsData(response)
             } catch (err) {
@@ -89,24 +118,19 @@ const ModelGroupSalesSheet = ({ hasFile, fileId }) => {
                 setLoading(false)
             }
         }
-
-        // Debounce or just call it. React handles rapid updates reasonably well, 
-        // but for text search we usually debounce. For checkbox selection, immediate is fine.
         loadMetrics()
-    }, [fileId, selected, metric])
+    }, [fileId, selectedGroupNames, activeL2s, metric])
 
 
     const filteredGroups = useMemo(() => {
-        if (!groupsData?.groupNames) return []
-        return groupsData.groupNames.filter((value) =>
-            value.toLowerCase().includes(search.toLowerCase()),
+        if (!groupsData) return []
+        return groupsData.filter((g) =>
+            g.group_name.toLowerCase().includes(search.toLowerCase()),
         )
     }, [groupsData, search])
 
     const chartSeries = useMemo(() => {
         if (!metricsData?.series) return []
-        // API returns descending (latest first) usually, but Recharts prefers ascending.
-        // Our service currently returns desc. Let's reverse for chart.
         return [...metricsData.series].reverse()
     }, [metricsData])
 
@@ -140,12 +164,53 @@ const ModelGroupSalesSheet = ({ hasFile, fileId }) => {
         )
     }, [chartSeries])
 
-    const toggleSelection = (value) => {
-        setSelected((prev) =>
-            prev.includes(value)
-                ? prev.filter((item) => item !== value)
-                : [...prev, value],
-        )
+    // Interactions
+    const toggleExpand = (groupName) => {
+        const next = new Set(expandedGroups)
+        if (next.has(groupName)) {
+            next.delete(groupName)
+        } else {
+            next.add(groupName)
+        }
+        setExpandedGroups(next)
+    }
+
+    const toggleGroupSelection = (group) => {
+        const groupL2s = group.l2_values
+        const allSelected = groupL2s.every(l2 => activeL2s.has(l2))
+
+        const next = new Set(activeL2s)
+        if (allSelected) {
+            // Deselect all
+            groupL2s.forEach(l2 => next.delete(l2))
+        } else {
+            // Select all
+            groupL2s.forEach(l2 => next.add(l2))
+        }
+        setActiveL2s(next)
+    }
+
+    const toggleL2Selection = (l2) => {
+        const next = new Set(activeL2s)
+        if (next.has(l2)) {
+            next.delete(l2)
+        } else {
+            next.add(l2)
+        }
+        setActiveL2s(next)
+    }
+
+    const selectAll = () => {
+        if (!groupsData) return
+        const allL2s = new Set()
+        groupsData.forEach(g => {
+            g.l2_values.forEach(l2 => allL2s.add(l2))
+        })
+        setActiveL2s(allL2s)
+    }
+
+    const clearAll = () => {
+        setActiveL2s(new Set())
     }
 
     const renderYoYCard = (label, value) => {
@@ -154,7 +219,6 @@ const ModelGroupSalesSheet = ({ hasFile, fileId }) => {
         const formattedValue =
             value === null ? 'N/A' : `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
 
-        // Determine color based on value
         let colorClass = 'text-slate-900'
         if (isPositive) colorClass = 'text-emerald-600'
         if (isNegative) colorClass = 'text-red-600'
@@ -230,14 +294,14 @@ const ModelGroupSalesSheet = ({ hasFile, fileId }) => {
                             <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                                 <button
                                     type="button"
-                                    onClick={() => setSelected(groupsData.groupNames || [])}
+                                    onClick={selectAll}
                                     className="rounded-full border border-slate-200 px-2 py-1 hover:bg-white"
                                 >
                                     Select all
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setSelected([])}
+                                    onClick={clearAll}
                                     className="rounded-full border border-slate-200 px-2 py-1 hover:bg-white"
                                 >
                                     Clear
@@ -250,25 +314,74 @@ const ModelGroupSalesSheet = ({ hasFile, fileId }) => {
                             placeholder="Search model groups"
                             className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
                         />
-                        <div className="mt-4 max-h-[360px] overflow-auto rounded-xl border border-slate-200 bg-white">
-                            {filteredGroups.map((value) => (
-                                <label
-                                    key={value}
-                                    className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-3 py-2 text-sm text-slate-600"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={selected.includes(value)}
-                                        onChange={() => toggleSelection(value)}
-                                    />
-                                    <span className="flex-1">{value}</span>
-                                </label>
-                            ))}
+                        <div className="mt-4 max-h-[480px] overflow-auto rounded-xl border border-slate-200 bg-white">
+                            {filteredGroups.map((group) => {
+                                const isExpanded = expandedGroups.has(group.group_name)
+                                const allL2Selected = group.l2_values.every(l2 => activeL2s.has(l2))
+                                const someL2Selected = !allL2Selected && group.l2_values.some(l2 => activeL2s.has(l2))
+
+                                return (
+                                    <div key={group.group_name} className="border-b border-slate-100 last:border-0">
+                                        <div className="flex items-center px-3 py-2 hover:bg-slate-50">
+                                            <button
+                                                onClick={() => toggleExpand(group.group_name)}
+                                                className="p-1 text-slate-400 hover:text-slate-600 mr-2"
+                                            >
+                                                <svg
+                                                    className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                >
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </button>
+                                            <div
+                                                className="flex-1 flex items-center gap-3 cursor-pointer"
+                                                onClick={() => toggleGroupSelection(group)}
+                                            >
+                                                <div className="relative flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={allL2Selected}
+                                                        readOnly
+                                                        className="peer h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    {someL2Selected && (
+                                                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                            <div className="h-2 w-2 rounded-sm bg-blue-600"></div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <span className="text-sm font-medium text-slate-700 select-none">
+                                                    {group.group_name}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {isExpanded && (
+                                            <div className="bg-slate-50 px-4 py-2 space-y-1">
+                                                {group.l2_values.map(l2 => (
+                                                    <label key={l2} className="flex items-center gap-3 py-1 cursor-pointer pl-6 hover:bg-slate-100 rounded-lg">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={activeL2s.has(l2)}
+                                                            onChange={() => toggleL2Selection(l2)}
+                                                            className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                        />
+                                                        <span className="text-xs text-slate-600 select-none truncate">
+                                                            {l2}
+                                                        </span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
                         </div>
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                        {selected.length === 0 ? (
+                        {selectedGroupNames.length === 0 ? (
                             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                                 Select at least one model group to render the chart.
                             </div>
@@ -368,7 +481,7 @@ const ModelGroupSalesSheet = ({ hasFile, fileId }) => {
                                 )}
                                 {!loading && chartSeries.length === 0 && (
                                     <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                                        No data available for the selected groups.
+                                        No data available for the selected groups and filters.
                                     </div>
                                 )}
                             </div>

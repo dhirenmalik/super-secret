@@ -11,5 +11,6 @@ def handle_get_model_group_metrics(file_id: str, payload: ModelGroupMetricsReque
         metric=payload.metric,
         include_spends=payload.include_spends,
         window_weeks=payload.window_weeks,
+        l2_values=payload.l2_values,
     )
     return ModelGroupMetricsResponse(**data)
