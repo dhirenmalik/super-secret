@@ -6,7 +6,7 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 2,
 })
 
-const L3AnalysisSheet = ({ hasFile, fileId }) => {
+const L3AnalysisSheet = ({ hasFile, fileId, token }) => {
     const [data, setData] = useState(null)
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
@@ -61,7 +61,7 @@ const L3AnalysisSheet = ({ hasFile, fileId }) => {
                 const response = await fetchL3Analysis(fileId, {
                     startDate: startDate || undefined,
                     endDate: endDate || undefined,
-                })
+                }, token)
                 setData(response)
             } catch (err) {
                 setError(err.message || 'Unable to load L3 analysis')

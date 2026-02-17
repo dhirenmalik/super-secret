@@ -8,7 +8,7 @@ import {
     ResponsiveContainer,
     Legend,
 } from 'recharts'
-import { fetchWeeklySales } from '../../api/kickoff'
+import { fetchWeeklySales, fetchChartSelection, saveChartSelection } from '../../api/kickoff'
 
 const CHART_COLORS = [
     '#1d4ed8',
@@ -40,11 +40,30 @@ const formatHalfMonth = (value) => {
 const ChartsSheet = ({ hasFile, fileId }) => {
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(false)
+    const [saving, setSaving] = useState(false)
     const [error, setError] = useState('')
     const [selected, setSelected] = useState([])
     const [search, setSearch] = useState('')
     const [metric, setMetric] = useState('sales')
 
+    // 1. Initial Load: Load selection from Backend
+    useEffect(() => {
+        if (!fileId) return
+
+        const loadSelection = async () => {
+            try {
+                const response = await fetchChartSelection(fileId)
+                if (response.l2_values && response.l2_values.length > 0) {
+                    setSelected(response.l2_values)
+                }
+            } catch (e) {
+                console.error("Failed to load chart selection", e)
+            }
+        }
+        loadSelection()
+    }, [fileId])
+
+    // 2. Fetch Data: Don't auto-reset selection
     useEffect(() => {
         if (!fileId) {
             setData(null)
@@ -57,7 +76,12 @@ const ChartsSheet = ({ hasFile, fileId }) => {
             try {
                 const response = await fetchWeeklySales(fileId, metric)
                 setData(response)
-                setSelected(response.l2_values?.slice(0, 3) || [])
+
+                // Only set default if nothing is selected yet
+                setSelected(prev => {
+                    if (prev.length > 0) return prev
+                    return response.l2_values?.slice(0, 3) || []
+                })
             } catch (err) {
                 setError(err.message || 'Unable to load weekly sales')
             } finally {
@@ -67,6 +91,19 @@ const ChartsSheet = ({ hasFile, fileId }) => {
 
         load()
     }, [fileId, metric])
+
+    const handleSaveSelection = async () => {
+        if (!fileId) return
+        setSaving(true)
+        try {
+            await saveChartSelection(fileId, selected)
+        } catch (err) {
+            console.error("Failed to save selection", err)
+            setError("Failed to save view preferences")
+        } finally {
+            setSaving(false)
+        }
+    }
 
     const filteredL2 = useMemo(() => {
         if (!data?.l2_values) {
@@ -135,13 +172,26 @@ const ChartsSheet = ({ hasFile, fileId }) => {
                         Weekly O_SALE trends by selected L2 values.
                     </p>
                 </div>
-                <div>
+                <div className="flex items-center gap-3">
+                    {selected.length > 0 && (
+                        <button
+                            onClick={handleSaveSelection}
+                            disabled={saving}
+                            className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${saving
+                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                                }`}
+                        >
+                            {saving ? 'Saving...' : 'Save View'}
+                        </button>
+                    )}
                     <select
                         value={metric}
                         onChange={(event) => setMetric(event.target.value)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-slate-400 transition-colors"
                     >
                         <option value="sales">Weekly Sales</option>
+                        <option value="units">Weekly Units</option>
                         <option value="search_spends">Weekly Search Spends</option>
                         <option value="onsite_spends">Weekly Onsite Spends</option>
                         <option value="offsite_spends">Weekly Offsite Spends</option>

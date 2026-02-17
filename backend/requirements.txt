@@ -4,3 +4,10 @@ python-multipart
 pandas
 pydantic
 python-dotenv
+sqlalchemy
+alembic
+psycopg2-binary
+email-validator
+google-cloud-bigquery
+passlib[argon2]
+python-jose[cryptography]

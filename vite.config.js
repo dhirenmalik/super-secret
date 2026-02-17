@@ -8,9 +8,6 @@ export default defineConfig({
     open: false,
     host: '0.0.0.0',
     strictPort: false,
-    hmr: {
-      clientPort: 443,
-    },
   },
   preview: {
     port: 5173,

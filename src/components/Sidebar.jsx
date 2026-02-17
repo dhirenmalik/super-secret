@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import steps from '../data/steps';
 
 export default function Sidebar({ isCollapsed, setIsCollapsed }) {
+    const { user, logout } = useAuth();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [collapsedPhases, setCollapsedPhases] = useState({});
     const location = useLocation();
@@ -36,7 +38,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                         {!isCollapsed && (
                             <div className="sidebar-logo-text">
                                 <span className="sidebar-logo-title">Walmart</span>
-                                <span className="sidebar-logo-subtitle">Process Manager</span>
+                                <span className="sidebar-logo-subtitle">Process Management</span>
                             </div>
                         )}
                     </NavLink>
@@ -118,8 +120,60 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                     })}
                 </nav>
 
-                <div className="sidebar-footer">
-                    <p className="sidebar-footer-text">{isCollapsed ? "v1.0" : "Walmart Process Guide v1.0"}</p>
+                <div className="sidebar-footer" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '20px 0', marginTop: 'auto' }}>
+                    {user && (
+                        <div className="user-profile" style={{ padding: '0 24px 15px 24px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '8px',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '14px',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {user.user_name?.charAt(0) || user.email?.charAt(0)}
+                                </div>
+                                {!isCollapsed && (
+                                    <div style={{ overflow: 'hidden' }}>
+                                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '2px' }}>Welcome back,</div>
+                                        <div style={{ fontSize: '13px', fontWeight: '600', color: 'white', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{user.user_name}</div>
+                                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', textTransform: 'capitalize' }}>{user.role}</div>
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                onClick={logout}
+                                className="sidebar-nav-item logout-btn"
+                                style={{
+                                    width: '100%',
+                                    background: 'rgba(255,59,48,0.1)',
+                                    color: '#ff3b30',
+                                    border: 'none',
+                                    padding: '8px 12px',
+                                    borderRadius: '8px',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                    <polyline points="16 17 21 12 16 7"></polyline>
+                                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                                </svg>
+                                {!isCollapsed && "Logout"}
+                            </button>
+                        </div>
+                    )}
+                    <p className="sidebar-footer-text" style={{ padding: '0 24px', opacity: 0.5 }}>{isCollapsed ? "v1.0" : "Walmart Process Guide v1.0"}</p>
                 </div>
             </aside>
         </>

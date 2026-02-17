@@ -1,10 +1,14 @@
 from fastapi import APIRouter
-
-from app.api.v1.endpoints import files, model_groups_auto, model_group_metrics, eda
+# Import Analytics FIRST to ensure its models are registered before Governance models reference them
+from app.modules.analytics.router import router as analytics_router
+from app.modules.governance.router import router as governance_router
+from app.modules.governance.auth import router as auth_router
+from app.modules.connections.router import router as connections_router
 
 api_router = APIRouter(prefix="/api/v1")
 
-api_router.include_router(files.router, tags=["files"])
-api_router.include_router(model_groups_auto.router, tags=["model-groups-auto"])
-api_router.include_router(model_group_metrics.router, tags=["model-group-metrics"])
-api_router.include_router(eda.router, tags=["eda"])
+# Modularized Routers
+api_router.include_router(analytics_router)
+api_router.include_router(governance_router)
+api_router.include_router(connections_router)
+api_router.include_router(auth_router)
