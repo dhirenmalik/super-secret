@@ -4,3 +4,8 @@ python-multipart
 pandas
 pydantic
 python-dotenv
+sqlalchemy
+alembic
+psycopg2-binary
+pytest
+email-validator

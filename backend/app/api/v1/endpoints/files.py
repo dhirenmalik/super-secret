@@ -1,4 +1,6 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Query
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Depends
+from sqlalchemy.orm import Session
+from app.database import get_db
 
 from app.schemas.file import (
     UploadResponse,
@@ -29,9 +31,9 @@ router = APIRouter()
 
 
 @router.post("/files/upload", response_model=UploadResponse)
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
-        return handle_upload(file)
+        return handle_upload(file, db)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -63,9 +65,9 @@ async def l2_values(file_id: str):
 
 
 @router.get("/files/{file_id}/model-groups", response_model=ModelGroupMapping)
-async def get_model_groups(file_id: str):
+async def get_model_groups(file_id: str, db: Session = Depends(get_db)):
     try:
-        return handle_get_model_groups(file_id)
+        return handle_get_model_groups(file_id, db)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="File not found") from exc
     except Exception as exc:
@@ -73,9 +75,9 @@ async def get_model_groups(file_id: str):
 
 
 @router.post("/files/{file_id}/model-groups", response_model=ModelGroupMapping)
-async def save_model_groups(file_id: str, payload: ModelGroupSaveRequest):
+async def save_model_groups(file_id: str, payload: ModelGroupSaveRequest, db: Session = Depends(get_db)):
     try:
-        return handle_save_model_groups(file_id, [group.dict() for group in payload.groups])
+        return handle_save_model_groups(file_id, [group.dict() for group in payload.groups], db)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:

@@ -21,8 +21,36 @@ from app.schemas.model_group_weekly_sales import ModelGroupWeeklySalesResponse
 from app.services.model_group_weekly_sales_service import get_model_group_weekly_sales
 
 
-def handle_upload(file):
+from sqlalchemy.orm import Session
+from app import models
+
+def handle_upload(file, db: Session):
     file_id, filename, saved_path = save_upload(file)
+    
+    # Create Model record
+    db_model = models.Model(
+        model_name=f"Auto-Model {filename}",
+        model_type="eda_upload",
+        status="draft",
+        created_by=1  # Default admin user for now
+    )
+    db.add(db_model)
+    db.flush()  # Get model_id
+    
+    # Create ModelFile record
+    db_file = models.ModelFile(
+        model_id=db_model.model_id,
+        file_name=filename,
+        file_guid=file_id,
+        file_path=saved_path,
+        storage_type="local",
+        file_type="csv",
+        file_stage="raw",
+        uploaded_by=1
+    )
+    db.add(db_file)
+    db.commit()
+    
     return UploadResponse(file_id=file_id, filename=filename, saved_path=saved_path)
 
 
@@ -36,14 +64,51 @@ def handle_l2_values(file_id: str):
     return L2ValuesResponse(file_id=file_id, l2_values=values)
 
 
-def handle_get_model_groups(file_id: str):
+def handle_get_model_groups(file_id: str, db: Session):
+    # Try DB first
+    db_file = db.query(models.ModelFile).filter(models.ModelFile.file_guid == file_id).first()
+    if db_file:
+        groups = db_file.model.model_groups
+        if groups:
+            return ModelGroupMapping(
+                file_id=file_id,
+                groups=[
+                    {
+                        "group_id": g.group_id,
+                        "group_name": g.group_name,
+                        "l2_values": g.l2_values
+                    } for g in groups
+                ],
+                updated_at=groups[0].updated_at.isoformat() if groups else None
+            )
+            
+    # Fallback to file-based mapping
     mapping = load_mapping(file_id)
     return ModelGroupMapping(**mapping)
 
 
-def handle_save_model_groups(file_id: str, groups):
+def handle_save_model_groups(file_id: str, groups, db: Session):
     allowed_l2 = get_l2_values(file_id)
+    
+    # Save to file system (legacy support)
     mapping = save_mapping(file_id, groups, allowed_l2)
+    
+    # Save to DB
+    db_file = db.query(models.ModelFile).filter(models.ModelFile.file_guid == file_id).first()
+    if db_file:
+        # Clear existing groups for this model
+        db.query(models.ModelGroup).filter(models.ModelGroup.model_id == db_file.model_id).delete()
+        
+        # Add new groups
+        for g in mapping['groups']:
+            db_group = models.ModelGroup(
+                model_id=db_file.model_id,
+                group_name=g['group_name'],
+                l2_values=g['l2_values']
+            )
+            db.add(db_group)
+        db.commit()
+        
     return ModelGroupMapping(**mapping)
 
 

@@ -68,6 +68,33 @@ const CorrelationSheet = ({ hasFile, fileId }) => {
         load()
     }, [fileId])
 
+    // Compute active L2s: those that have at least one correlation >= minCorrelation with *another* L2.
+    // Self-correlation (diagonal) is ignored for this visibility check.
+    const activeIndices = React.useMemo(() => {
+        if (!data || !data.matrix) return []
+        const indices = []
+        for (let i = 0; i < data.matrix.length; i++) {
+            let hasSignificantExternalCorrelation = false
+            for (let j = 0; j < data.matrix[i].length; j++) {
+                if (i === j) continue // Skip self-correlation
+                if (Math.abs(data.matrix[i][j]) >= minCorrelation) {
+                    hasSignificantExternalCorrelation = true
+                    break
+                }
+            }
+            if (hasSignificantExternalCorrelation) {
+                indices.push(i)
+            }
+        }
+        return indices
+    }, [data, minCorrelation])
+
+    const activeL2Values = React.useMemo(() => {
+        if (!data || !data.l2_values) return []
+        return activeIndices.map(i => data.l2_values[i])
+    }, [data, activeIndices])
+
+
     if (!hasFile) {
         return (
             <div className="rounded-3xl border border-dashed border-slate-200 bg-white/80 p-10 text-center text-sm text-slate-500">
@@ -113,50 +140,58 @@ const CorrelationSheet = ({ hasFile, fileId }) => {
                 </div>
             )}
 
-            {!loading && !error && data && data.l2_values?.length > 0 && (
-                <div className="mt-6 overflow-auto rounded-2xl border border-slate-200">
+            {!loading && !error && data && activeL2Values.length > 0 && (
+                <div className="mt-6 overflow-auto rounded-2xl border border-slate-200" style={{ maxHeight: '600px' }}>
                     <table className="min-w-full text-left text-xs">
-                        <thead className="sticky top-0 bg-slate-100 text-[10px] uppercase tracking-widest text-slate-500">
+                        <thead className="sticky top-0 bg-slate-100 text-[10px] uppercase tracking-widest text-slate-500 z-20">
                             <tr>
-                                <th className="px-3 py-2 font-medium bg-slate-100 sticky left-0 z-10 border-r border-slate-200">L2</th>
-                                {data.l2_values.map((label) => (
-                                    <th key={label} className="px-3 py-2 font-medium text-right whitespace-nowrap">
+                                <th className="px-3 py-2 font-medium bg-slate-100 sticky left-0 z-30 border-r border-slate-200 shadow-sm">L2</th>
+                                {activeL2Values.map((label) => (
+                                    <th key={label} className="px-3 py-2 font-medium text-right whitespace-nowrap bg-slate-100">
                                         {label}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {data.l2_values.map((rowLabel, rowIndex) => (
-                                <tr key={rowLabel}>
-                                    <td className="px-3 py-2 text-slate-600 font-medium bg-slate-50 sticky left-0 z-10 border-r border-slate-200 whitespace-nowrap">
-                                        {rowLabel}
-                                    </td>
-                                    {data.matrix[rowIndex]?.map((value, colIndex) => {
-                                        const isVisible = Math.abs(value) >= minCorrelation || rowLabel === data.l2_values[colIndex];
-                                        return (
-                                            <td
-                                                key={`${rowLabel}-${colIndex}`}
-                                                className="px-3 py-2 text-right text-slate-800 transition-colors duration-200"
-                                                style={{
-                                                    backgroundColor: isVisible ? getHeatColor(value) : '#f8fafc',
-                                                    color: isVisible ? 'inherit' : '#cbd5e1'
-                                                }}
-                                            >
-                                                {isVisible ? value.toFixed(3) : '-'}
-                                            </td>
-                                        )
-                                    })}
-                                </tr>
-                            ))}
+                            {activeIndices.map((rowIndex) => {
+                                const rowLabel = data.l2_values[rowIndex]
+                                return (
+                                    <tr key={rowLabel}>
+                                        <td className="px-3 py-2 text-slate-600 font-medium bg-slate-50 sticky left-0 z-10 border-r border-slate-200 whitespace-nowrap shadow-sm">
+                                            {rowLabel}
+                                        </td>
+                                        {activeIndices.map((colIndex) => {
+                                            const value = data.matrix[rowIndex][colIndex]
+                                            const isSelf = rowIndex === colIndex
+                                            // Only show the color for significant correlations that are NOT self-correlations
+                                            const isSignificant = Math.abs(value) >= minCorrelation
+                                            const showValue = !isSelf && isSignificant
+
+                                            return (
+                                                <td
+                                                    key={`${rowLabel}-${data.l2_values[colIndex]}`}
+                                                    className="px-3 py-2 text-right text-slate-800 transition-colors duration-200"
+                                                    style={{
+                                                        backgroundColor: showValue ? getHeatColor(value) : '#fff',
+                                                        color: showValue ? 'inherit' : '#cbd5e1'
+                                                    }}
+                                                >
+                                                    {isSelf ? '-' : (showValue ? value.toFixed(3) : '-')}
+                                                </td>
+                                            )
+                                        })}
+                                    </tr>
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>
             )}
 
-            {!loading && !error && data && data.l2_values?.length === 0 && (
+            {!loading && !error && data && activeL2Values.length === 0 && (
                 <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                    No correlation data available.
+                    No significant correlations found at this threshold.
                 </div>
             )}
         </section>

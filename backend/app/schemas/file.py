@@ -21,7 +21,7 @@ class L2ValuesResponse(BaseModel):
 
 
 class ModelGroup(BaseModel):
-    group_id: int
+    group_id: int | None = None
     group_name: str
     l2_values: List[str]
 
