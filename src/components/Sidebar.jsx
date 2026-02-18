@@ -70,7 +70,10 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                     </NavLink>
 
                     {['ETL', 'EDA', 'Model Building', 'Optimisation', 'Reporting'].map(phase => {
-                        const phaseSteps = steps.filter(s => s.phase === phase);
+                        const phaseSteps = steps.filter(s =>
+                            s.phase === phase &&
+                            (!s.allowedRoles || s.allowedRoles.includes(user?.role))
+                        );
                         if (phaseSteps.length === 0) return null;
 
                         const isPhaseCollapsed = collapsedPhases[phase] || isCollapsed;

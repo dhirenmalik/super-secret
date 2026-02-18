@@ -4,6 +4,10 @@ export default function StatusBadge({ status = 'not_started' }) {
         in_progress: 'In Progress',
         completed: 'Completed',
         blocked: 'Blocked',
+        uploaded: 'Uploaded',
+        pending: 'Pending Review',
+        approved: 'Approved',
+        rejected: 'Rejected',
     };
 
     const className = status.replace('_', '-');

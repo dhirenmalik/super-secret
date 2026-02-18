@@ -8,6 +8,7 @@ const steps = [
         name: 'Data Staging',
         icon: 'Database',
         phase: 'ETL',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Login to VDI (Walmart cloud)',
             'Run queries specific to category',
@@ -25,6 +26,7 @@ const steps = [
         name: 'Data Pull',
         icon: 'CloudDownload',
         phase: 'ETL',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             "Upload files from VDI to IG's cloud",
             'Download data from cloud to local systems',
@@ -39,6 +41,7 @@ const steps = [
         name: 'Data Platform Connection',
         icon: 'Plug',
         phase: 'ETL',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Multiple times download & upload data',
         ],
@@ -52,6 +55,7 @@ const steps = [
         name: 'Kick-off Report',
         icon: 'FileBarChart',
         phase: 'EDA',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Develop report based on categories & sub-categories, their co-relations, sales/units/spends etc',
             'Suggest model groups to decide',
@@ -64,6 +68,7 @@ const steps = [
         name: 'Kick-off Report Review',
         icon: 'MessageSquare',
         phase: 'EDA',
+        allowedRoles: ['admin', 'reviewer'],
         tasks: [
             'Review model groupings',
             'Discuss L2/L3 sub-categories to shift internally',
@@ -80,6 +85,7 @@ const steps = [
         name: 'Subcategory Analysis',
         icon: 'Filter',
         phase: 'EDA',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Analyze subcategories (L3) for exclusion/inclusion based on sales, spend, and unit shares.',
         ],
@@ -93,6 +99,7 @@ const steps = [
         name: 'Exclude Flag Review',
         icon: 'CheckSquare',
         phase: 'EDA',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Confirm brands to be considered, combined or excluded for relevant sales & spends coverage',
         ],
@@ -107,6 +114,7 @@ const steps = [
         name: 'Brand Stacks Creation',
         icon: 'Layers',
         phase: 'EDA',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Create Total category stack',
             'Create aggregated brand stack i.e. Data prep for modeling',
@@ -119,6 +127,7 @@ const steps = [
         name: 'Discovery Tool Analysis',
         icon: 'LineChart',
         phase: 'EDA',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Create report with trends, charts, comparison with Raw data at total and Variable level',
         ],
@@ -130,6 +139,7 @@ const steps = [
         name: 'Tool Review',
         icon: 'Settings',
         phase: 'EDA',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Customisation – Merge or remove tactics',
             'Manual calculations to adjust data due to data discrepancy',
@@ -145,6 +155,7 @@ const steps = [
         name: 'EDA Email Report',
         icon: 'Mail',
         phase: 'EDA',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Generated through notebook to create and populate all six tables and key insights in WMC fixed format, reducing manual effort and turnaround time',
         ],
@@ -157,6 +168,7 @@ const steps = [
         name: 'EDA Code Run',
         icon: 'Code',
         phase: 'Model Building',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Notebook for Model preliminary requirements check',
         ],
@@ -170,6 +182,7 @@ const steps = [
         name: 'Category Config',
         icon: 'Settings',
         phase: 'Model Building',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Notebook for populating model parameters like priors & historical constraints',
         ],
@@ -184,6 +197,7 @@ const steps = [
         name: 'Dummy Selection',
         icon: 'List',
         phase: 'Model Building',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Base fixing i.e. Non-media variables inclusion',
             'Model fit KPIs check',
@@ -199,6 +213,7 @@ const steps = [
         name: 'Dummy Validation',
         icon: 'CheckCircle',
         phase: 'Model Building',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [],
         automationNotes: [
             'Dummies/ Events needs to be changed, if fit is not appropriate',
@@ -211,6 +226,7 @@ const steps = [
         name: 'Best Base Selection',
         icon: 'Star',
         phase: 'Model Building',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Finalise base with best R-sqaure & lowest MAPE out of 10 bases',
             'Top 3 bases will be considered for media inclusion',
@@ -225,6 +241,7 @@ const steps = [
         name: 'Saturation & Thresholds',
         icon: 'Sliders',
         phase: 'Model Building',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Add media variables',
             'S-curve creation for media variables',
@@ -239,6 +256,7 @@ const steps = [
         name: 'S-curve Adjustments',
         icon: 'Activity',
         phase: 'Model Building',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'If agent unable to dump solutions then based on recommendations, modeler needs to change parameters',
         ],
@@ -252,6 +270,7 @@ const steps = [
         name: 'Model Fit - Overall',
         icon: 'BarChart2',
         phase: 'Model Building',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Allignment for Actual Vs Predicted',
             'R2 / MAPE under well defined limits',
@@ -271,6 +290,7 @@ const steps = [
         name: 'Model Validation - Media',
         icon: 'TrendingUp',
         phase: 'Model Building',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             "Model performance for 3 different time periods & it's comparison",
             'Calculations of contributions & iRoAS for each media tactic for different time periods',
@@ -288,6 +308,7 @@ const steps = [
         name: 'Final Model Validation',
         icon: 'Award',
         phase: 'Model Building',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'If agent unable to find solution based on defined criterias, then modeler needs to re-run from S-curve adjustments',
         ],
@@ -304,6 +325,7 @@ const steps = [
         name: 'Reports Prep',
         icon: 'FileText',
         phase: 'Model Building',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Model Review report for WMC sales review meeting',
             'Model Result report for WMC discussion meeting',
@@ -317,6 +339,7 @@ const steps = [
         name: 'Input Prep & Run',
         icon: 'PlayCircle',
         phase: 'Optimisation',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Run multiple scenarios from 1x to 1.75x by increasing spends among media variables to measure lifts',
         ],
@@ -328,6 +351,7 @@ const steps = [
         name: 'Scenario Alignment',
         icon: 'GitMerge',
         phase: 'Optimisation',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Differential evolution to adjust bounds to allocate budget among media',
             'One shot optimisation technique to generate lifts',
@@ -346,6 +370,7 @@ const steps = [
         name: 'Optimisation Review',
         icon: 'Eye',
         phase: 'Optimisation',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Change on spend distribution to increase or decrease lifts in different scenarios',
         ],
@@ -360,6 +385,7 @@ const steps = [
         name: 'Deck Generation',
         icon: 'FileInput',
         phase: 'Reporting',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Notebooks to run to prepare input files',
         ],
@@ -371,6 +397,7 @@ const steps = [
         name: 'Automation Code',
         icon: 'Cpu',
         phase: 'Reporting',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [],
         automationNotes: [],
     },
@@ -380,6 +407,7 @@ const steps = [
         name: 'Tableau Population',
         icon: 'Monitor',
         phase: 'Reporting',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Review optimization',
             'Review iRoAS',
@@ -400,6 +428,7 @@ const steps = [
         name: 'Documentation',
         icon: 'Book',
         phase: 'Reporting',
+        allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Multiple documents created :',
             'The documents include – final stack, optimization results, raw vs transformed tactic impressions & spend charts, coefficient summary, model stats, media contribution, etc',

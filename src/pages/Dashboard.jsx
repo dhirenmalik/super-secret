@@ -9,23 +9,36 @@ import { NavLink } from 'react-router-dom';
 export default function Dashboard() {
     const { user, token } = useAuth();
     const [pendingItems, setPendingItems] = useState([]);
+    const [kickoffStatus, setKickoffStatus] = useState('not_started');
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        if (user && (user.role === 'reviewer' || user.role === 'admin')) {
-            loadPendingItems();
-        }
+        loadDashboardData();
     }, [user]);
 
-    const loadPendingItems = async () => {
+    const loadDashboardData = async () => {
         setIsLoading(true);
         try {
-            const files = await fetchFiles(token);
-            // Filter for items that need review/approval
-            const pending = files.filter(f => f.status === 'pending');
-            setPendingItems(pending);
+            // Load pending items for reviewers
+            if (user && (user.role === 'reviewer' || user.role === 'admin')) {
+                const files = await fetchFiles(token);
+                const pending = files.filter(f => f.status === 'pending');
+                setPendingItems(pending);
+            }
+
+            // Load kickoff status for everyone
+            const latest = await fetchLatestFile(token);
+            if (latest) {
+                // Map backend status to frontend display labels
+                const statusMap = {
+                    'pending': 'uploaded',
+                    'approved': 'approved',
+                    'rejected': 'rejected'
+                };
+                setKickoffStatus(statusMap[latest.status] || latest.status);
+            }
         } catch (error) {
-            console.error('Failed to load pending items:', error);
+            console.error('Failed to load dashboard data:', error);
         } finally {
             setIsLoading(false);
         }
@@ -199,7 +212,11 @@ export default function Dashboard() {
                         </h2>
                         <div className="dashboard-grid">
                             {edaSteps.map((step) => (
-                                <StepCard key={step.id} step={step} />
+                                <StepCard
+                                    key={step.id}
+                                    step={step}
+                                    status={step.id === 4 ? kickoffStatus : 'not_started'}
+                                />
                             ))}
                         </div>
                     </div>

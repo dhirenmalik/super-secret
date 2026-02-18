@@ -511,9 +511,21 @@ button {
   color: var(--color-success);
 }
 
-.status-badge.blocked {
+.status-badge.blocked,
+.status-badge.rejected {
   background: var(--color-danger-light);
   color: var(--color-danger);
+}
+
+.status-badge.uploaded,
+.status-badge.pending {
+  background: var(--color-warning-light);
+  color: #B8860B;
+}
+
+.status-badge.approved {
+  background: var(--color-success-light);
+  color: var(--color-success);
 }
 
 .status-badge-dot {
@@ -536,9 +548,20 @@ button {
   background: var(--color-success);
 }
 
-.status-badge.blocked .status-badge-dot {
+.status-badge.blocked .status-badge-dot,
+.status-badge.rejected .status-badge-dot {
   background: var(--color-danger);
   animation: pulse-dot 1.5s infinite;
+}
+
+.status-badge.uploaded .status-badge-dot,
+.status-badge.pending .status-badge-dot {
+  background: var(--color-warning);
+  animation: pulse-dot 2s infinite;
+}
+
+.status-badge.approved .status-badge-dot {
+  background: var(--color-success);
 }
 
 @keyframes pulse-dot {
@@ -797,6 +820,19 @@ button {
   box-shadow: var(--shadow-lg);
   transform: translateY(-3px);
   border-color: rgba(0, 113, 220, 0.2);
+}
+
+.step-card.uploaded,
+.step-card.pending {
+  border-left: 4px solid var(--color-warning);
+}
+
+.step-card.approved {
+  border-left: 4px solid var(--color-success);
+}
+
+.step-card.rejected {
+  border-left: 4px solid var(--color-danger);
 }
 
 .step-card:hover::before {

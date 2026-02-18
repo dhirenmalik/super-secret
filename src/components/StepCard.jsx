@@ -5,7 +5,7 @@ export default function StepCard({ step, status = 'not_started' }) {
     const navigate = useNavigate();
 
     return (
-        <div className="step-card" onClick={() => navigate(`/step/${step.slug}`)}>
+        <div className={`step-card ${status || ''}`} onClick={() => navigate(`/step/${step.slug}`)}>
             <div className="step-card-header">
                 <div className="step-card-number">{step.id}</div>
                 <StatusBadge status={status} />
