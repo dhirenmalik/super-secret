@@ -81,6 +81,24 @@ const steps = [
     },
     {
         id: 6,
+        slug: 'eda-data-hub',
+        name: 'EDA Master Data Hub',
+        icon: 'LayoutGrid',
+        phase: 'EDA',
+        allowedRoles: ['admin', 'modeler'],
+        tasks: [
+            'Upload Raw Data for Exclude Flag Analysis',
+            'Upload Raw Data for Brand Stacks Creation',
+            'Upload Raw Data for Discovery Tool Analysis',
+            'Upload Raw Data for Tool Review',
+            'Upload Raw Data for EDA Email Report',
+        ],
+        automationNotes: [
+            'Centralized hub to manage all raw data dependencies for EDA phase',
+        ],
+    },
+    {
+        id: 7,
         slug: 'exclude-flag-analysis',
         name: 'Subcategory Analysis',
         icon: 'Filter',
@@ -94,7 +112,7 @@ const steps = [
         ],
     },
     {
-        id: 7,
+        id: 8,
         slug: 'exclude-flag-review',
         name: 'Exclude Flag Review',
         icon: 'CheckSquare',
@@ -109,7 +127,7 @@ const steps = [
         ],
     },
     {
-        id: 8,
+        id: 9,
         slug: 'brand-stacks-creation',
         name: 'Brand Stacks Creation',
         icon: 'Layers',
@@ -122,7 +140,7 @@ const steps = [
         automationNotes: [],
     },
     {
-        id: 9,
+        id: 10,
         slug: 'discovery-tool-analysis',
         name: 'Discovery Tool Analysis',
         icon: 'LineChart',
@@ -134,7 +152,7 @@ const steps = [
         automationNotes: [],
     },
     {
-        id: 10,
+        id: 11,
         slug: 'tool-review',
         name: 'Tool Review',
         icon: 'Settings',
@@ -150,7 +168,7 @@ const steps = [
         ],
     },
     {
-        id: 11,
+        id: 12,
         slug: 'eda-email-report',
         name: 'EDA Email Report',
         icon: 'Mail',
@@ -163,7 +181,7 @@ const steps = [
     },
     // Model Building Phase
     {
-        id: 12,
+        id: 13,
         slug: 'eda-code-run',
         name: 'EDA Code Run',
         icon: 'Code',
@@ -177,7 +195,7 @@ const steps = [
         ],
     },
     {
-        id: 13,
+        id: 14,
         slug: 'category-config',
         name: 'Category Config',
         icon: 'Settings',
@@ -192,7 +210,7 @@ const steps = [
         ],
     },
     {
-        id: 14,
+        id: 15,
         slug: 'dummy-selection',
         name: 'Dummy Selection',
         icon: 'List',
@@ -208,7 +226,7 @@ const steps = [
         ],
     },
     {
-        id: 15,
+        id: 16,
         slug: 'dummy-selection-validation',
         name: 'Dummy Validation',
         icon: 'CheckCircle',
@@ -221,7 +239,7 @@ const steps = [
         ],
     },
     {
-        id: 16,
+        id: 17,
         slug: 'best-base-selection',
         name: 'Best Base Selection',
         icon: 'Star',
@@ -236,7 +254,7 @@ const steps = [
         ],
     },
     {
-        id: 17,
+        id: 18,
         slug: 'saturation-thresholds',
         name: 'Saturation & Thresholds',
         icon: 'Sliders',
@@ -251,7 +269,7 @@ const steps = [
         ],
     },
     {
-        id: 18,
+        id: 19,
         slug: 's-curve-adjustments',
         name: 'S-curve Adjustments',
         icon: 'Activity',
@@ -265,7 +283,7 @@ const steps = [
         ],
     },
     {
-        id: 19,
+        id: 20,
         slug: 'model-fit-overall',
         name: 'Model Fit - Overall',
         icon: 'BarChart2',
@@ -285,7 +303,7 @@ const steps = [
         ],
     },
     {
-        id: 20,
+        id: 21,
         slug: 'model-validation-media',
         name: 'Model Validation - Media',
         icon: 'TrendingUp',
@@ -303,7 +321,7 @@ const steps = [
         ],
     },
     {
-        id: 21,
+        id: 22,
         slug: 'final-model-validation',
         name: 'Final Model Validation',
         icon: 'Award',
@@ -320,7 +338,7 @@ const steps = [
         ],
     },
     {
-        id: 22,
+        id: 23,
         slug: 'reports-prep',
         name: 'Reports Prep',
         icon: 'FileText',
@@ -334,7 +352,7 @@ const steps = [
     },
     // Optimisation Phase
     {
-        id: 23,
+        id: 24,
         slug: 'input-prep-optimisation',
         name: 'Input Prep & Run',
         icon: 'PlayCircle',
@@ -346,7 +364,7 @@ const steps = [
         automationNotes: [],
     },
     {
-        id: 24,
+        id: 25,
         slug: 'scenario-alignment',
         name: 'Scenario Alignment',
         icon: 'GitMerge',
@@ -365,7 +383,7 @@ const steps = [
         ],
     },
     {
-        id: 25,
+        id: 26,
         slug: 'optimisation-review',
         name: 'Optimisation Review',
         icon: 'Eye',
@@ -380,7 +398,7 @@ const steps = [
     },
     // Reporting Phase
     {
-        id: 26,
+        id: 27,
         slug: 'model-deck-input',
         name: 'Deck Generation',
         icon: 'FileInput',
@@ -392,7 +410,7 @@ const steps = [
         automationNotes: [],
     },
     {
-        id: 27,
+        id: 28,
         slug: 'automation-code',
         name: 'Automation Code',
         icon: 'Cpu',
@@ -402,7 +420,7 @@ const steps = [
         automationNotes: [],
     },
     {
-        id: 28,
+        id: 29,
         slug: 'tableau-population',
         name: 'Tableau Population',
         icon: 'Monitor',
@@ -423,7 +441,7 @@ const steps = [
         ],
     },
     {
-        id: 29,
+        id: 30,
         slug: 'documentation',
         name: 'Documentation',
         icon: 'Book',

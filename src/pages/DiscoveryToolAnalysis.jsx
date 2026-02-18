@@ -5,7 +5,7 @@ import steps from '../data/steps';
 import TimeSeriesChart from '../components/charts/TimeSeriesChart';
 import ComparisonBarChart from '../components/charts/ComparisonBarChart';
 
-const step = steps.find((s) => s.id === 9);
+const step = steps.find((s) => s.slug === 'discovery-tool-analysis');
 
 // Helper function to get color based on value
 const getSpendColor = (value) => {

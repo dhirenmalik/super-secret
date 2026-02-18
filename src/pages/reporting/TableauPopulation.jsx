@@ -5,7 +5,7 @@ import TableauShell from '../../components/reporting/TableauShell';
 
 export default function TableauPopulation() {
     return (
-        <BasePage stepId={28}>
+        <BasePage stepId={29}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 {/* Tableau Server Integration - Moved to Top */}
                 <div className="card" style={{ borderLeft: '4px solid #0071dc' }}>

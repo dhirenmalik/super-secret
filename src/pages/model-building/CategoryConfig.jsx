@@ -26,7 +26,7 @@ const configData = {
 
 export default function CategoryConfig() {
     return (
-        <BasePage stepId={13}>
+        <BasePage stepId={14}>
             <div className="card">
                 <div className="card-header">
                     <div className="card-title">

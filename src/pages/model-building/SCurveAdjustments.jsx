@@ -29,7 +29,7 @@ export default function SCurveAdjustments() {
     ];
 
     return (
-        <BasePage stepId={18} hideTasks={true}>
+        <BasePage stepId={19} hideTasks={true}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 {tactics.map((tactic, idx) => (
                     <div key={idx} className="card">

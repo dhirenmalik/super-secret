@@ -21,7 +21,7 @@ const organic_bounds = {
 
 export default function InputPrepOptimisation() {
     return (
-        <BasePage stepId={23} hideTasks={true}>
+        <BasePage stepId={24} hideTasks={true}>
             <div className="grid-2">
                 <div className="card">
                     <div className="card-header">

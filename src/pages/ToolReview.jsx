@@ -5,7 +5,7 @@ import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 
-const step = steps.find((s) => s.id === 10);
+const step = steps.find((s) => s.slug === 'tool-review');
 
 const mockTactics = [
     { id: 1, name: 'TV Linear', type: 'Media', cappingValue: 100 },

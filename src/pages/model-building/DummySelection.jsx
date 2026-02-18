@@ -22,7 +22,7 @@ const dummyConfig = {
 
 export default function DummySelection() {
     return (
-        <BasePage stepId={14}>
+        <BasePage stepId={15}>
             <div className="grid-2">
                 <div className="card">
                     <div className="card-header">

@@ -5,7 +5,7 @@ import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 
-const step = steps.find((s) => s.id === 11);
+const step = steps.find((s) => s.slug === 'eda-email-report');
 
 const mockTables = [
     'Sales Summary by Category',

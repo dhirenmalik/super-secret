@@ -3,7 +3,7 @@ import BasePage from './BasePage';
 
 export default function FinalModelValidation() {
     return (
-        <BasePage stepId={21}>
+        <BasePage stepId={22}>
             <div className="card">
                 <div className="card-header">
                     <div className="card-title">

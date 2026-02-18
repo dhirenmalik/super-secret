@@ -4,7 +4,7 @@ import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 
-const step = steps.find((s) => s.id === 8);
+const step = steps.find((s) => s.slug === 'brand-stacks-creation');
 
 export default function BrandStacksCreation() {
     return (

@@ -15,6 +15,7 @@ import BrandStacksCreation from './pages/BrandStacksCreation';
 import DiscoveryToolAnalysis from './pages/DiscoveryToolAnalysis';
 import ToolReview from './pages/ToolReview';
 import EdaEmailReport from './pages/EdaEmailReport';
+import EdaDataHub from './pages/EdaDataHub';
 
 // Model Building Pages
 import EDACodeRun from './pages/model-building/EDACodeRun';
@@ -79,6 +80,11 @@ function App() {
                     <Route path="step/kickoff-report-review" element={
                         <ProtectedRoute allowedRoles={['admin', 'reviewer']}>
                             <KickoffReportReview />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="step/eda-data-hub" element={
+                        <ProtectedRoute allowedRoles={['admin', 'modeler']}>
+                            <EdaDataHub />
                         </ProtectedRoute>
                     } />
                     <Route path="step/exclude-flag-analysis" element={

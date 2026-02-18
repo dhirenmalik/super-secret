@@ -46,7 +46,7 @@ export default function ScenarioAlignment() {
     };
 
     return (
-        <BasePage stepId={24} hideTasks={true}>
+        <BasePage stepId={25} hideTasks={true}>
             <div className="card">
                 <div className="card-header">
                     <div className="card-title">

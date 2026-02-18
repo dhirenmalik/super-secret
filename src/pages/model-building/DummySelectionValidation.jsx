@@ -22,7 +22,7 @@ const dummyConfig = {
 
 export default function DummySelectionValidation() {
     return (
-        <BasePage stepId={15}>
+        <BasePage stepId={16}>
             <div className="grid-2">
                 <div className="card">
                     <div className="card-header">

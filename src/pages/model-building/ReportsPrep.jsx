@@ -7,7 +7,7 @@ import HeadroomChart from '../../components/reports/HeadroomChart';
 
 export default function ReportsPrep() {
     return (
-        <BasePage stepId={22} hideTasks={true}>
+        <BasePage stepId={23} hideTasks={true}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b' }}>Model Finalization & Reporting</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>

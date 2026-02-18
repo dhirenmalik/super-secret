@@ -5,7 +5,7 @@ import MediaTacticsTable from '../../components/MediaTacticsTable';
 
 export default function EDACodeRun() {
     return (
-        <BasePage stepId={12} hideTasks={true}>
+        <BasePage stepId={13} hideTasks={true}>
             <div className="card">
                 <div className="card-header">
                     <div className="card-title">

@@ -78,7 +78,7 @@ export default function ModelValidationMedia() {
     ];
 
     return (
-        <BasePage stepId={20} hideTasks={true}>
+        <BasePage stepId={21} hideTasks={true}>
             <div className="card">
                 <div className="card-header">
                     <div className="card-title">

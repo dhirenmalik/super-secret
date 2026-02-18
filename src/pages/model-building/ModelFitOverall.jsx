@@ -9,7 +9,7 @@ export default function ModelFitOverall() {
     ];
 
     return (
-        <BasePage stepId={19} hideTasks={true}>
+        <BasePage stepId={20} hideTasks={true}>
             <div className="card">
                 <div className="card-header">
                     <div className="card-title">

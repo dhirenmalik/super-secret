@@ -27,7 +27,7 @@ export default function AutomationCode() {
     };
 
     return (
-        <BasePage stepId={27}>
+        <BasePage stepId={28}>
             <div className="card">
                 <div className="card-header">
                     <div className="card-title">

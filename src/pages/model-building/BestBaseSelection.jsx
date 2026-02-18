@@ -3,7 +3,7 @@ import BasePage from './BasePage';
 
 export default function BestBaseSelection() {
     return (
-        <BasePage stepId={16} hideTasks={true}>
+        <BasePage stepId={17} hideTasks={true}>
             <div className="card">
                 <div className="card-header">
                     <div className="card-title">

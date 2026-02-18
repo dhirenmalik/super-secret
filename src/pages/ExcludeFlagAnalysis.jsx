@@ -6,7 +6,7 @@ import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 import { fetchExcludeAnalysis, updateRelevance } from '../api/eda';
 
-const step = steps.find((s) => s.id === 6);
+const step = steps.find((s) => s.slug === 'exclude-flag-analysis');
 
 export default function ExcludeFlagAnalysis() {
     const [brands, setBrands] = useState([]);

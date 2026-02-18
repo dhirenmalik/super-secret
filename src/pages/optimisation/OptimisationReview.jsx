@@ -5,7 +5,7 @@ import OptimizationResultsTable from '../../components/optimisation/Optimization
 
 export default function OptimisationReview() {
     return (
-        <BasePage stepId={25} hideTasks={true}>
+        <BasePage stepId={26} hideTasks={true}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b' }}>Optimization Review & Finalization</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>

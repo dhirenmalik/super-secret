@@ -4,7 +4,7 @@ import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 
-const step = steps.find((s) => s.id === 7);
+const step = steps.find((s) => s.slug === 'exclude-flag-review');
 
 const confirmationBrands = [
     { id: 1, name: 'Premium Brand A', action: 'Include', salesCoverage: '35.2%', spendsCoverage: '38.5%' },

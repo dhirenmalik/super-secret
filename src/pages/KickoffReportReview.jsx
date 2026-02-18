@@ -6,7 +6,7 @@ import { fetchFiles, fetchLatestFile, updateReportStatus } from '../api/kickoff'
 import ReportViewer from '../components/kickoff/ReportViewer';
 
 export default function KickoffReportReview() {
-    const step = steps.find((s) => s.id === 5);
+    const step = steps.find((s) => s.slug === 'kickoff-report-review');
     const [fileId, setFileId] = useState('');
     const [reports, setReports] = useState([]);
     const [isActionLoading, setIsActionLoading] = useState(false);

@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import ReportViewer from '../components/kickoff/ReportViewer'
 
 export default function KickoffReport() {
-    const step = steps.find((s) => s.id === 4)
+    const step = steps.find((s) => s.slug === 'kickoff-report')
     const { token } = useAuth()
     const [fileId, setFileId] = useState('')
     const [reports, setReports] = useState([])

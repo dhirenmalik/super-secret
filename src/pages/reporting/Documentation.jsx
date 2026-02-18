@@ -4,7 +4,7 @@ import CloudUploadAnimation from '../../components/reporting/CloudUploadAnimatio
 
 export default function Documentation() {
     return (
-        <BasePage stepId={29}>
+        <BasePage stepId={30}>
             <div className="grid-2">
                 {/* Deliverables List */}
                 <div className="card">

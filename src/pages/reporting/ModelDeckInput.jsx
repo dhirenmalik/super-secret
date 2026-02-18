@@ -27,7 +27,7 @@ export default function ModelDeckInput() {
     };
 
     return (
-        <BasePage stepId={26}>
+        <BasePage stepId={27} hideTasks={true}>
             <div className="card">
                 <div className="card-header">
                     <div className="card-title">

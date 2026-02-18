@@ -9,8 +9,8 @@ import { NavLink } from 'react-router-dom';
 export default function Dashboard() {
     const { user, token } = useAuth();
     const [pendingItems, setPendingItems] = useState([]);
-    const [kickoffStatus, setKickoffStatus] = useState('not_started');
     const [isLoading, setIsLoading] = useState(false);
+    const [stepStatuses, setStepStatuses] = useState({});
 
     useEffect(() => {
         loadDashboardData();
@@ -19,6 +19,8 @@ export default function Dashboard() {
     const loadDashboardData = async () => {
         setIsLoading(true);
         try {
+            const statuses = {};
+
             // Load pending items for reviewers
             if (user && (user.role === 'reviewer' || user.role === 'admin')) {
                 const files = await fetchFiles(token);
@@ -26,17 +28,36 @@ export default function Dashboard() {
                 setPendingItems(pending);
             }
 
-            // Load kickoff status for everyone
-            const latest = await fetchLatestFile(token);
-            if (latest) {
-                // Map backend status to frontend display labels
-                const statusMap = {
-                    'pending': 'uploaded',
-                    'approved': 'approved',
-                    'rejected': 'rejected'
-                };
-                setKickoffStatus(statusMap[latest.status] || latest.status);
+            // Fetch Kickoff Report Status
+            try {
+                const latestKickoff = await fetchLatestFile('kickoff_report', token);
+                if (latestKickoff) {
+                    const statusMap = {
+                        'pending': 'uploaded',
+                        'approved': 'approved',
+                        'rejected': 'rejected'
+                    };
+                    statuses['kickoff-report'] = statusMap[latestKickoff.status] || latestKickoff.status;
+                } else {
+                    statuses['kickoff-report'] = 'not_started';
+                }
+            } catch (err) {
+                console.error('Failed to fetch kickoff status:', err);
             }
+
+            // Fetch EDA Data Hub Status (check if any raw file exists)
+            try {
+                const latestHub = await fetchLatestFile('exclude_flags_raw', token);
+                if (latestHub) {
+                    statuses['eda-data-hub'] = 'uploaded';
+                } else {
+                    statuses['eda-data-hub'] = 'not_started';
+                }
+            } catch (err) {
+                console.error('Failed to fetch hub status:', err);
+            }
+
+            setStepStatuses(statuses);
         } catch (error) {
             console.error('Failed to load dashboard data:', error);
         } finally {
@@ -215,7 +236,7 @@ export default function Dashboard() {
                                 <StepCard
                                     key={step.id}
                                     step={step}
-                                    status={step.id === 4 ? kickoffStatus : 'not_started'}
+                                    status={stepStatuses[step.slug] || 'not_started'}
                                 />
                             ))}
                         </div>
