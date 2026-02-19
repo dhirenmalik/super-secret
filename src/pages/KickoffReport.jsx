@@ -25,7 +25,7 @@ export default function KickoffReport() {
     const loadReports = async () => {
         setIsReportsLoading(true)
         try {
-            const data = await fetchFiles(token)
+            const data = await fetchFiles(true, token)
             setReports(data || [])
         } catch (err) {
             console.error('Failed to load reports:', err)
@@ -61,7 +61,7 @@ export default function KickoffReport() {
         setIsUploading(true)
         setError('')
         try {
-            const uploadResponse = await uploadCsv(selectedFile, newReportName, token)
+            const uploadResponse = await uploadCsv(selectedFile, newReportName, token, null, true)
             const newId = uploadResponse.file_id.toString()
             setFileId(newId)
             setNewReportName('')

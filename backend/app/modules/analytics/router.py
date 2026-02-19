@@ -14,28 +14,39 @@ async def get_exclude_analysis():
     return await service.get_exclude_analysis_data()
 
 @router.post("/eda/relevance")
-async def update_relevance(category: str, relevant: bool):
-    return service.update_produce_relevance(category, relevant)
+async def update_relevance(
+    payload: schemas.RelevanceUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    return service.update_produce_relevance(db, payload.category, payload.relevant)
 
 # File Management & Analysis
 @router.post("/files/upload")
 async def upload_file(
     file: UploadFile = File(...), 
     category: Optional[str] = Query(None),
+    model_id: Optional[int] = Query(None),
+    is_analysis: bool = Query(False),
     db: Session = Depends(get_db), 
     current_user = Depends(get_current_user)
 ):
-    return await service.handle_file_upload(db, file, current_user.user_id, category)
+    return await service.handle_file_upload(db, file, current_user.user_id, category, model_id, is_analysis)
 
 from app.modules.governance import schemas as gov_schemas
 
 @router.get("/files", response_model=List[gov_schemas.ModelFile])
-def get_all_files(db: Session = Depends(get_db)):
-    return service.get_all_files_records(db)
+def get_all_files(is_analysis: Optional[bool] = Query(None), db: Session = Depends(get_db)):
+    return service.get_all_files_records(db, is_analysis)
 
 @router.get("/files/latest", response_model=gov_schemas.ModelFile)
-def get_latest_file(db: Session = Depends(get_db)):
-    latest = service.get_latest_file_record(db)
+def get_latest_file(
+    category: Optional[str] = Query(None), 
+    model_id: Optional[int] = Query(None),
+    is_analysis: Optional[bool] = Query(None),
+    db: Session = Depends(get_db)
+):
+    latest = service.get_latest_file_record(db, category, model_id, is_analysis)
     if not latest:
         raise HTTPException(status_code=404, detail="No files found")
     return latest
@@ -127,3 +138,7 @@ def add_report_comment(file_id: str, payload: schemas.ReportCommentRequest, db: 
 @router.get("/files/{file_id}/comments", response_model=List[schemas.ReportCommentResponse])
 def get_report_comments(file_id: str, db: Session = Depends(get_db)):
     return service.get_report_comments_data(db, file_id)
+
+@router.get("/files/{file_id}/brand-exclusion", response_model=schemas.BrandExclusionResponse)
+async def get_brand_exclusion(file_id: str):
+    return await service.get_brand_exclusion_data(file_id)

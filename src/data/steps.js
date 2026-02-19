@@ -100,15 +100,18 @@ const steps = [
     {
         id: 7,
         slug: 'exclude-flag-analysis',
-        name: 'Subcategory Analysis',
+        name: 'Exclude Flag Analysis',
         icon: 'Filter',
         phase: 'EDA',
         allowedRoles: ['admin', 'modeler'],
         tasks: [
-            'Analyze subcategories (L3) for exclusion/inclusion based on sales, spend, and unit shares.',
+            'Analyze subcategories (L3) for exclusion/inclusion',
+            'Perform Brand-level share analysis (Sales, Spend, Units)',
+            'Identify Private Brands and Mapping Issues',
+            'Assign Combine or Exclude flags at brand level',
         ],
         automationNotes: [
-            'To check recommendations from agent to confirm the exclusion & inclusion of brands',
+            'Automated recommendation engine for brand-level flags based on share thresholds and fuzzy matching',
         ],
     },
     {

@@ -81,6 +81,7 @@ class ModelFileBase(BaseModel):
     file_path: str
     file_type: str
     version: int = 1
+    is_analysis: bool = False
 
 class ModelFileCreate(ModelFileBase):
     model_id: Optional[int] = None
@@ -112,5 +113,25 @@ class Approval(ApprovalBase):
     reviewed_by: Optional[int]
     requested_at: datetime
     reviewed_at: Optional[datetime]
+    class Config:
+        from_attributes = True
+
+# Production Data Schemas
+class RawDataFileBase(BaseModel):
+    file_name: str
+    storage_type: Optional[str] = "local"
+    file_path: Optional[str] = None
+    bucket_name: Optional[str] = None
+    file_type: Optional[str] = None
+    file_size: Optional[int] = None
+    checksum: Optional[str] = None
+    status: Optional[str] = "uploaded"
+    row_count: Optional[int] = None
+    remarks: Optional[str] = None
+
+class RawDataFile(RawDataFileBase):
+    raw_file_id: int
+    uploaded_by: Optional[int] = None
+    uploaded_at: datetime
     class Config:
         from_attributes = True

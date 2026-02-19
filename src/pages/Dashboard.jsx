@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { fetchFiles } from '../api/kickoff';
+import { fetchFiles, fetchLatestFile, getApiBaseUrl } from '../api/kickoff';
 import steps from '../data/steps';
 import StepCard from '../components/StepCard';
 import PageHeader from '../components/PageHeader';
@@ -11,10 +11,42 @@ export default function Dashboard() {
     const [pendingItems, setPendingItems] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [stepStatuses, setStepStatuses] = useState({});
+    const [models, setModels] = useState([]);
 
     useEffect(() => {
         loadDashboardData();
+        loadModels();
     }, [user]);
+
+    const loadModels = async () => {
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/models`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setModels(data);
+        } catch (error) {
+            console.error('Failed to fetch models:', error);
+        }
+    };
+
+    const handleDeleteModel = async (modelId) => {
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/models/${modelId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                // Refresh list
+                loadModels();
+            } else {
+                alert('Failed to delete model');
+            }
+        } catch (error) {
+            console.error('Error deleting model:', error);
+            alert('Error deleting model');
+        }
+    };
 
     const loadDashboardData = async () => {
         setIsLoading(true);
@@ -86,8 +118,21 @@ export default function Dashboard() {
                     }
                     breadcrumb={['Home', 'Dashboard']}
                 />
-                <div className="mb-8 px-4 py-2 bg-blue-50 border border-blue-100 rounded-lg hidden md:block">
-                    <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Role: {user?.role}</span>
+                <div className="flex gap-3 mb-8">
+                    <NavLink
+                        to="/create-model"
+                        className="btn btn-primary"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Create New Model
+                    </NavLink>
+                    <div className="px-4 py-2 bg-blue-50 border border-blue-100 rounded-lg hidden md:block">
+                        <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Role: {user?.role}</span>
+                    </div>
                 </div>
             </div>
 
@@ -164,82 +209,93 @@ export default function Dashboard() {
             {/* Modelers see full stats and pipeline */}
             {isModeler && (
                 <>
-                    <div className="dashboard-stats">
-                        <div className="stat-card">
-                            <div className="stat-icon blue">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M3 3h18v18H3z" />
-                                    <path d="M3 9h18" />
-                                    <path d="M9 21V9" />
-                                </svg>
-                            </div>
-                            <div>
-                                <div className="stat-value">{steps.length}</div>
-                                <div className="stat-label">Total Steps</div>
-                            </div>
+                    <div className="section">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="section-title m-0">
+                                <span className="tag tag-blue">ACTIVE MODELS</span>
+                                Your Modeling Projects
+                            </h2>
+                            <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">
+                                {models.length} Projects
+                            </span>
                         </div>
-                        <div className="stat-card">
-                            <div className="stat-icon green">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                                    <polyline points="22 4 12 14.01 9 11.01" />
-                                </svg>
-                            </div>
-                            <div>
-                                <div className="stat-value">{totalTasks}</div>
-                                <div className="stat-label">Total Tasks</div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div className="card">
-                        <div className="card-header">
-                            <div className="card-title">
-                                <div className="card-title-icon blue">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M12 20v-6M6 20V10M18 20V4" />
+                        {models.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {models.map((model) => (
+                                    <div key={model.model_id} className="relative group">
+                                        <NavLink
+                                            to={`/step/eda-data-hub`}
+                                            onClick={() => localStorage.setItem('active_model_id', model.model_id)}
+                                            className="block"
+                                        >
+                                            <div className="card h-full group-hover:shadow-lg transition-all border-l-4 border-l-blue-500">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div className="card-title-icon blue">
+                                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                                        </svg>
+                                                    </div>
+                                                    <span className={`status-badge ${model.status === 'draft' ? 'not-started' : 'success'}`}>
+                                                        <span className="status-badge-dot"></span>
+                                                        {model.status.toUpperCase()}
+                                                    </span>
+                                                </div>
+                                                <h3 className="font-bold text-slate-800 mb-1">{model.model_name}</h3>
+                                                <div className="flex flex-wrap gap-2 mb-4">
+                                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold uppercase tracking-wider">
+                                                        Type: {model.model_type}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-slate-500 mb-4 truncate">
+                                                    Created {new Date(model.created_at).toLocaleDateString()}
+                                                </p>
+                                                <div className="flex items-center gap-2 text-blue-600 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    Go to EDA Data Hub
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                                        <polyline points="12 5 19 12 12 19"></polyline>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </NavLink>
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                if (window.confirm(`Are you sure you want to delete "${model.model_name}"?`)) {
+                                                    handleDeleteModel(model.model_id);
+                                                }
+                                            }}
+                                            className="absolute top-4 right-4 p-2 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all z-10"
+                                            title="Delete Model"
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="3 6 5 6 21 6"></polyline>
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="card py-16 text-center border-dashed">
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                                    <svg className="text-slate-300" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                                     </svg>
                                 </div>
-                                Pipeline Progress
+                                <h3 className="font-bold text-slate-800">No Models Created</h3>
+                                <p className="text-sm text-slate-500 mb-6">Start by creating a new modeling project to begin the ETL/EDA process.</p>
+                                <NavLink to="/create-model" className="btn btn-primary">
+                                    Create First Model
+                                </NavLink>
                             </div>
-                        </div>
-                        <div className="progress-bar-container">
-                            <div className="progress-bar-label">
-                                <span style={{ color: 'var(--color-text-muted)' }}>Overall Completion</span>
-                                <span style={{ color: 'var(--color-primary)' }}>0/{steps.length} steps</span>
-                            </div>
-                            <div className="progress-bar-track">
-                                <div className="progress-bar-fill" style={{ width: '0%' }} />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="section">
-                        <h2 className="section-title">
-                            <span className="tag tag-etl">ETL</span>
-                            Extract, Transform & Load
-                        </h2>
-                        <div className="dashboard-grid">
-                            {etlSteps.map((step) => (
-                                <StepCard key={step.id} step={step} />
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="section">
-                        <h2 className="section-title">
-                            <span className="tag tag-eda">EDA</span>
-                            Exploratory Data Analysis
-                        </h2>
-                        <div className="dashboard-grid">
-                            {edaSteps.map((step) => (
-                                <StepCard
-                                    key={step.id}
-                                    step={step}
-                                    status={stepStatuses[step.slug] || 'not_started'}
-                                />
-                            ))}
-                        </div>
+                        )}
                     </div>
                 </>
             )}

@@ -16,6 +16,7 @@ import DiscoveryToolAnalysis from './pages/DiscoveryToolAnalysis';
 import ToolReview from './pages/ToolReview';
 import EdaEmailReport from './pages/EdaEmailReport';
 import EdaDataHub from './pages/EdaDataHub';
+import CreateModel from './pages/CreateModel';
 
 // Model Building Pages
 import EDACodeRun from './pages/model-building/EDACodeRun';
@@ -53,6 +54,11 @@ function App() {
                     </ProtectedRoute>
                 }>
                     <Route index element={<Dashboard />} />
+                    <Route path="create-model" element={
+                        <ProtectedRoute allowedRoles={['admin', 'modeler']}>
+                            <CreateModel />
+                        </ProtectedRoute>
+                    } />
 
                     {/* ETL Phase */}
                     <Route path="step/data-staging" element={

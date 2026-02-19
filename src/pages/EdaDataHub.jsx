@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
-import { uploadCsv, fetchLatestFile } from '../api/kickoff';
+import { uploadCsv, fetchLatestFile, getApiBaseUrl } from '../api/kickoff';
 import { useAuth } from '../context/AuthContext';
 
 const FILE_TYPES = [
@@ -18,16 +18,44 @@ export default function EdaDataHub() {
     const { token } = useAuth();
     const [files, setFiles] = useState({});
     const [uploading, setUploading] = useState({});
+    const [models, setModels] = useState([]);
+    const [selectedModelId, setSelectedModelId] = useState(localStorage.getItem('active_model_id') || '');
+    const [isLoadingModels, setIsLoadingModels] = useState(false);
 
     useEffect(() => {
-        FILE_TYPES.forEach(type => {
-            loadLatestFile(type.category);
-        });
+        loadModels();
     }, []);
+
+    useEffect(() => {
+        if (selectedModelId) {
+            FILE_TYPES.forEach(type => {
+                loadLatestFile(type.category);
+            });
+        }
+    }, [selectedModelId]);
+
+    const loadModels = async () => {
+        setIsLoadingModels(true);
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/models`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setModels(data);
+            if (data.length > 0 && !selectedModelId) {
+                setSelectedModelId(data[0].model_id.toString());
+                localStorage.setItem('active_model_id', data[0].model_id);
+            }
+        } catch (error) {
+            console.error('Error fetching models:', error);
+        } finally {
+            setIsLoadingModels(false);
+        }
+    };
 
     const loadLatestFile = async (category) => {
         try {
-            const latest = await fetchLatestFile(category, token);
+            const latest = await fetchLatestFile(category, token, selectedModelId);
             if (latest) {
                 setFiles(prev => ({ ...prev, [category]: latest }));
             }
@@ -42,7 +70,7 @@ export default function EdaDataHub() {
 
         setUploading(prev => ({ ...prev, [category]: true }));
         try {
-            await uploadCsv(file, category, token);
+            await uploadCsv(file, category, token, selectedModelId);
             await loadLatestFile(category);
         } catch (error) {
             console.error(`Upload failed for ${category}:`, error);
@@ -63,6 +91,40 @@ export default function EdaDataHub() {
             >
                 <StatusBadge status="in_progress" />
             </PageHeader>
+
+            <div className="card" style={{ marginTop: '24px' }}>
+                <div className="card-header flex justify-between items-center">
+                    <div className="card-title">
+                        <div className="card-title-icon green">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                            </svg>
+                        </div>
+                        Select Active Model
+                    </div>
+                </div>
+                <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row gap-4 items-center">
+                    <div className="w-full md:w-64">
+                        <select
+                            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            value={selectedModelId}
+                            onChange={(e) => {
+                                setSelectedModelId(e.target.value);
+                                localStorage.setItem('active_model_id', e.target.value);
+                            }}
+                            disabled={isLoadingModels}
+                        >
+                            <option value="">-- Select Model --</option>
+                            {models.map(m => (
+                                <option key={m.model_id} value={m.model_id}>{m.model_name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="text-sm text-slate-500">
+                        {selectedModelId ? "Currently uploading for the selected model." : "Please select a model to see previously uploaded files."}
+                    </div>
+                </div>
+            </div>
 
             <div className="card" style={{ marginTop: '24px' }}>
                 <div className="card-header">

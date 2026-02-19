@@ -29,3 +29,12 @@ export const updateRelevance = async (category, relevant) => {
     }
     return response.json();
 };
+
+export const fetchBrandExclusion = async (fileId) => {
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/files/${fileId}/brand-exclusion`);
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to fetch brand exclusion data');
+    }
+    return response.json();
+};

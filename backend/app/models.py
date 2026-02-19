@@ -19,5 +19,6 @@ from .modules.governance.models import (
     ModelFile,
     ModelStageApproval,
     ModelAssignment,
-    Notification
+    Notification,
+    RawDataFile
 )

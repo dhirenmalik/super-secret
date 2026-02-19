@@ -4,13 +4,19 @@ export const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE_URL;
 };
 
-export const uploadCsv = async (file, category = null, token = null) => {
+export const uploadCsv = async (file, category = null, token = null, modelId = null, isAnalysis = false) => {
     const formData = new FormData();
     formData.append('file', file);
 
     const url = new URL(`${getApiBaseUrl()}/api/v1/files/upload`);
     if (category) {
         url.searchParams.append('category', category);
+    }
+    if (modelId) {
+        url.searchParams.append('model_id', modelId);
+    }
+    if (isAnalysis) {
+        url.searchParams.append('is_analysis', 'true');
     }
 
     const headers = {};
@@ -32,12 +38,17 @@ export const uploadCsv = async (file, category = null, token = null) => {
     return response.json();
 };
 
-export const fetchFiles = async (token = null) => {
+export const fetchFiles = async (isAnalysis = null, token = null) => {
     const headers = {};
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
-    const response = await fetch(`${getApiBaseUrl()}/api/v1/files`, {
+    const url = new URL(`${getApiBaseUrl()}/api/v1/files`);
+    if (isAnalysis !== null) {
+        url.searchParams.append('is_analysis', isAnalysis);
+    }
+
+    const response = await fetch(url, {
         headers: headers
     });
     if (!response.ok) {
@@ -63,12 +74,17 @@ export const deleteFile = async (fileId, token = null) => {
     return response.json();
 };
 
-export const fetchLatestFile = async (token = null) => {
+export const fetchLatestFile = async (category = null, token = null, modelId = null, isAnalysis = null) => {
+    const url = new URL(`${getApiBaseUrl()}/api/v1/files/latest`);
+    if (category) url.searchParams.append('category', category);
+    if (modelId) url.searchParams.append('model_id', modelId);
+    if (isAnalysis !== null) url.searchParams.append('is_analysis', isAnalysis);
+
     const headers = {};
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
-    const response = await fetch(`${getApiBaseUrl()}/api/v1/files/latest`, {
+    const response = await fetch(url, {
         headers: headers
     });
     if (!response.ok) {

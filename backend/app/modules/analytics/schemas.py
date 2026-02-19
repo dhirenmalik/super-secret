@@ -2,6 +2,10 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
+class RelevanceUpdateRequest(BaseModel):
+    category: str
+    relevant: bool
+
 # Stack Schemas
 class StackBase(BaseModel):
     stack_name: Optional[str] = None
@@ -172,3 +176,29 @@ class ReportCommentResponse(BaseModel):
     user_name: str
     comment_text: str
     created_at: datetime
+
+# Brand Exclusion Analysis
+class BrandExclusionRow(BaseModel):
+    brand: str
+    sales_share: float
+    spend_share: float
+    unit_share: float
+    private_brand: int
+    mapping_issue: int
+    combine_flag: Optional[int] = None
+    exclude_flag: int
+    reason_issue_type: str
+    sum_sales: float
+    sum_spend: float
+    sum_units: float
+
+class BrandExclusionSummary(BaseModel):
+    combine_flag_count: int
+    exclude_flag_count: int
+    issue_counts: Dict[str, int]
+
+class BrandExclusionResponse(BaseModel):
+    file_id: str
+    rows: List[BrandExclusionRow]
+    summary: BrandExclusionSummary
+    warnings: List[str] = []

@@ -66,6 +66,19 @@ def startup_event():
                 db.refresh(modeler_role)
         reviewer_role = db.query(models.Role).filter(models.Role.role_name == "reviewer").first()
         
+        # Seed permissions
+        create_model_perm = db.query(models.Permission).filter(models.Permission.permission_name == "create_model").first()
+        if not create_model_perm:
+            create_model_perm = models.Permission(permission_name="create_model")
+            db.add(create_model_perm)
+            db.commit()
+            db.refresh(create_model_perm)
+            
+        # Link permissions to roles
+        if modeler_role and create_model_perm not in modeler_role.permissions:
+            modeler_role.permissions.append(create_model_perm)
+            db.commit()
+        
         # Ensure default users exist
         hashed_password = get_password_hash("walmart123")
         

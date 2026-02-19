@@ -7,6 +7,8 @@ from datetime import datetime
 from uuid import uuid4
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
+import re
+from difflib import SequenceMatcher
 
 from app.core.database import SessionLocal
 from app.core import storage as file_storage
@@ -32,12 +34,21 @@ def calculate_summary(df: pd.DataFrame, group_by: str = "L2") -> pd.DataFrame:
     
     # Define mapping of logical fields to possible CSV column names
     mapping = {
-        "sales": ["Sales", "O_SALE", "Sale", "Total_Sales"],
-        "units": ["Units", "O_UNIT", "Unit", "Total_Units"],
-        "search_spends": ["M_SEARCH_SPEND", "Search_Spend", "SEARCH_SPEND"],
-        "onsite_display_spends": ["M_ON_DIS_TOTAL_SPEND", "ONDisplay_Spend", "ON_DIS_SPEND"],
-        "offsite_display_spends": ["M_OFF_DIS_TOTAL_SPEND", "OFFDisplay_Spend", "OFF_DIS_SPEND"],
-        "total_spends": ["Total", "Total_Spend", "TOTAL_SPEND", "SPEND_TOTAL"]
+        "sales": ["Sales", "O_SALE", "Sale", "Total_Sales", "SALES", "O_SALE"],
+        "units": ["Units", "O_UNIT", "Unit", "Total_Units", "UNITS", "O_UNIT"],
+        "search_spends": ["M_SEARCH_SPEND", "Search_Spend", "SEARCH_SPEND", "M_SEARCH_SPEND"],
+        "onsite_display_spends": [
+            "M_ON_DIS_TOTAL_SPEND", "ONDisplay_Spend", "ON_DIS_SPEND",
+            "M_ON_DIS_TOTAL_SUM_SPEND", "M_TOTAL_DISPLAY_SUM_SPEND"
+        ],
+        "offsite_display_spends": [
+            "M_OFF_DIS_TOTAL_SPEND", "OFFDisplay_Spend", "OFF_DIS_SPEND",
+            "M_OFF_DIS_TOTAL_SUM_SPEND"
+        ],
+        "total_spends": [
+            "Total", "Total_Spend", "TOTAL_SPEND", "SPEND_TOTAL",
+            "TOTAL_SPEND", "M_TOTAL_DISPLAY_SUM_SPEND"
+        ]
     }
 
     # Resolve actual columns in df
@@ -52,7 +63,7 @@ def calculate_summary(df: pd.DataFrame, group_by: str = "L2") -> pd.DataFrame:
                 found = True
                 break
         if not found:
-             print(f"[WARNING] Could not resolve column for logical field: {logical}")
+            print(f"[WARNING] Could not resolve column for logical field: {logical}")
     
     # Ensure numeric and aggregate
     for logical, physical in resolved_mapping.items():
@@ -62,7 +73,13 @@ def calculate_summary(df: pd.DataFrame, group_by: str = "L2") -> pd.DataFrame:
     target_group = "L2" if group_by.lower() == "l2" else "Model_Group"
     group_col = cols_upper.get(target_group.upper(), cols_upper.get("L2", df.columns[0]))
 
-    print(f"[DEBUG] Grouping by: {group_col}")
+    print(f"[DEBUG] Grouping by: {group_col}, resolved_mapping: {list(resolved_mapping.keys())}")
+
+    # Guard: if nothing resolved, we cannot aggregate — return empty summary
+    if not resolved_mapping:
+        print("[WARNING] No numeric columns resolved. Returning empty summary.")
+        return pd.DataFrame(columns=["subcategory", "sales", "units", "search_spends",
+                                     "onsite_display_spends", "offsite_display_spends", "total_spends"])
 
     # Aggregator
     agg_map = {physical: "sum" for physical in resolved_mapping.values()}
@@ -77,6 +94,14 @@ def calculate_summary(df: pd.DataFrame, group_by: str = "L2") -> pd.DataFrame:
     for col in mapping.keys():
         if col not in summary.columns:
             summary[col] = 0.0
+
+    # Derive total_spends from components if it was not resolved directly
+    if "total_spends" not in resolved_mapping:
+        summary["total_spends"] = (
+            summary.get("search_spends", pd.Series(0, index=summary.index))
+            + summary.get("onsite_display_spends", pd.Series(0, index=summary.index))
+            + summary.get("offsite_display_spends", pd.Series(0, index=summary.index))
+        )
 
     # Calculated derived fields
     summary["avg_price"] = summary["sales"] / summary["units"].replace(0, np.nan)
@@ -131,44 +156,94 @@ def load_data(file_id: str) -> pd.DataFrame:
         return pd.read_parquet(saved_path)
     return pd.read_csv(saved_path)
 
-async def handle_file_upload(db: Session, file: UploadFile, user_id: int, category: Optional[str] = None):
-    file_storage.ensure_upload_root()
-    file_id = str(uuid4())
-    file_path, manifest_path = file_storage.build_file_paths(file_id, file.filename)
-    
-    size = 0
-    with open(file_path, "wb") as target:
-        while chunk := await file.read(1024 * 1024):
-            size += len(chunk)
-            target.write(chunk)
-            
-    file_storage.write_manifest(manifest_path, {"file_id": file_id, "filename": file.filename, "saved_path": file_path})
+async def handle_file_upload(db: Session, file: UploadFile, user_id: int, category: Optional[str] = None, model_id: Optional[int] = None, is_analysis: bool = False):
     from app.modules.governance import service as gov_service
+    from app.modules.governance import models as gov_models
     from app.modules.governance.schemas import ModelCreate
 
-    # Create a model record for this analysis file
-    model_name = category if category else f"Analysis_{file.filename}"
-    model_in = ModelCreate(model_name=model_name, model_type="analytics")
-    db_model = gov_service.create_model(db, model_in, user_id)
+    # Resolve or create model FIRST to get model_name for storage
+    active_model_id = model_id
+    model_name = "unknown_model"
+    
+    if active_model_id:
+        db_model = db.query(gov_models.Model).filter(gov_models.Model.model_id == active_model_id).first()
+        if db_model:
+            model_name = db_model.model_name
+    else:
+        model_name = category if category else f"Analysis_{file.filename.split('.')[0]}"
+        model_in = ModelCreate(model_name=model_name, model_type="analytics")
+        db_model = gov_service.create_model(db, model_in, user_id)
+        active_model_id = db_model.model_id
 
-    # Link file to model
+    file_storage.ensure_upload_root()
+    # Pass model_name and is_analysis to storage
+    metadata = await file_storage.save_file(file, model_name, is_analysis)
+    
+    # Calculate row count for CSV files
+    row_count = 0
+    if metadata["file_name"].lower().endswith(".csv"):
+        try:
+            df = pd.read_csv(metadata["file_path"])
+            row_count = len(df)
+        except Exception as e:
+            print(f"[WARNING] Failed to calculate row count: {e}")
+
+    # Create RawDataFile record
+    raw_file = gov_models.RawDataFile(
+        file_name=metadata["file_name"],
+        storage_type=metadata["storage_type"],
+        file_path=metadata["file_path"],
+        bucket_name=metadata["bucket_name"],
+        file_type=metadata["file_type"],
+        file_size=metadata["file_size"],
+        checksum=metadata["checksum"],
+        uploaded_by=user_id,
+        uploaded_at=metadata["uploaded_at"],
+        status=metadata["status"],
+        row_count=row_count,
+        remarks=f"Category: {category}" if category else None
+    )
+    db.add(raw_file)
+    db.commit()
+    db.refresh(raw_file)
+
+    # Maintain ModelFile for backward compatibility and UI tracking
     db_file = gov_service.register_file(
         db, 
         file.filename, 
-        file_path, 
-        model_id=db_model.model_id, 
+        metadata["file_path"], 
+        model_id=active_model_id, 
         uploaded_by=user_id, 
-        category=category
+        category=category,
+        is_analysis=is_analysis
     )
-    return {"file_id": db_file.file_id, "filename": file.filename, "category": category, "model_id": db_model.model_id}
+    
+    return {
+        "file_id": db_file.file_id, 
+        "raw_file_id": raw_file.raw_file_id,
+        "filename": file.filename, 
+        "category": category, 
+        "model_id": active_model_id,
+        "row_count": row_count
+    }
 
-def get_latest_file_record(db: Session):
+def get_latest_file_record(db: Session, category: Optional[str] = None, model_id: Optional[int] = None, is_analysis: Optional[bool] = None):
     from app.modules.governance.models import ModelFile
-    return db.query(ModelFile).order_by(ModelFile.uploaded_at.desc()).first()
+    query = db.query(ModelFile)
+    if category:
+        query = query.filter(ModelFile.file_category == category)
+    if model_id:
+        query = query.filter(ModelFile.model_id == model_id)
+    if is_analysis is not None:
+        query = query.filter(ModelFile.is_analysis == is_analysis)
+    return query.order_by(ModelFile.uploaded_at.desc()).first()
 
-def get_all_files_records(db: Session):
+def get_all_files_records(db: Session, is_analysis: Optional[bool] = None):
     from app.modules.governance.models import ModelFile
-    return db.query(ModelFile).order_by(ModelFile.uploaded_at.desc()).all()
+    query = db.query(ModelFile)
+    if is_analysis is not None:
+        query = query.filter(ModelFile.is_analysis == is_analysis)
+    return query.order_by(ModelFile.uploaded_at.desc()).all()
 
 def _get_model_id_from_file_id(db: Session, file_id: int) -> int:
     from app.modules.governance.models import ModelFile
@@ -689,20 +764,103 @@ def get_file_preview_data(file_id: str, rows: int = 5):
 # EDA PRODUCE CATEGORY
 # ==========================================================
 async def get_exclude_analysis_data():
-    if not os.path.exists(EDA_DATA_PATH):
+    db = SessionLocal()
+    try:
+        latest = get_latest_file_record(db, category="exclude_flags_raw")
+        if not latest or not os.path.exists(latest.file_path):
+            if os.path.exists(EDA_DATA_PATH):
+                df = pd.read_csv(EDA_DATA_PATH)
+            else:
+                return {"data": []}
+        else:
+            df = pd.read_csv(latest.file_path)
+    finally:
+        db.close()
+
+    if df.empty:
         return {"data": []}
-    df = pd.read_csv(EDA_DATA_PATH)
-    # Mapping keys for Pydantic
-    df = df.rename(columns={
-        'OFFDisplay_Spend_Share%': 'OFFDisplay_Spend_Share_Percentage',
-        'ONDisplay_Spend_Share%': 'ONDisplay_Spend_Share_Percentage',
-        'Search_Spend_Share%': 'Search_Spend_Share_Percentage',
-        'Sales_Share%': 'Sales_Share_Percentage',
-        'Unit_Share%': 'Unit_Share_Percentage'
-    })
+
+    # Grouping logic if raw file
+    if 'L3' in df.columns:
+        # Standardize column names to match calculate_summary logic
+        sales_col = next((c for c in ['O_SALE', 'SALES', 'Sales'] if c in df.columns), None)
+        units_col = next((c for c in ['O_UNIT', 'UNITS', 'Units'] if c in df.columns), None)
+        
+        agg_dict = {}
+        if sales_col: agg_dict[sales_col] = 'sum'
+        if units_col: agg_dict[units_col] = 'sum'
+        
+        spend_cols = ['M_ON_DIS_TOTAL_SPEND', 'M_OFF_DIS_TOTAL_SPEND', 'M_SEARCH_SPEND']
+        available_spend_cols = [c for c in spend_cols if c in df.columns]
+        for c in available_spend_cols:
+            agg_dict[c] = 'sum'
+        
+        if not agg_dict:
+            return {"data": []}
+            
+        summary_df = df.groupby('L3').agg(agg_dict).reset_index()
+        
+        total_sales = summary_df[sales_col].sum() if sales_col else 1
+        total_units = summary_df[units_col].sum() if units_col else 1
+        total_all_spend = summary_df[available_spend_cols].sum().sum() if available_spend_cols else 1
+        
+        summary_df = summary_df.rename(columns={
+            'L3': 'Category',
+            sales_col: 'Total_Sales',
+            units_col: 'Total_Units'
+        })
+        
+        summary_df['Sales_Share_Percentage'] = (summary_df['Total_Sales'] / total_sales * 100) if total_sales > 0 else 0
+        summary_df['Unit_Share_Percentage'] = (summary_df['Total_Units'] / total_units * 100) if total_units > 0 else 0
+        summary_df['AVG_PRICE'] = (summary_df['Total_Sales'] / summary_df['Total_Units']) if 'Total_Units' in summary_df and (summary_df['Total_Units'] > 0).any() else 0
+        
+        if 'M_SEARCH_SPEND' in summary_df.columns:
+            summary_df['Search_Spend_Share_Percentage'] = (summary_df['M_SEARCH_SPEND'] / total_all_spend * 100) if total_all_spend > 0 else 0
+        if 'M_OFF_DIS_TOTAL_SPEND' in summary_df.columns:
+            summary_df['OFFDisplay_Spend_Share_Percentage'] = (summary_df['M_OFF_DIS_TOTAL_SPEND'] / total_all_spend * 100) if total_all_spend > 0 else 0
+        if 'M_ON_DIS_TOTAL_SPEND' in summary_df.columns:
+            summary_df['ONDisplay_Spend_Share_Percentage'] = (summary_df['M_ON_DIS_TOTAL_SPEND'] / total_all_spend * 100) if total_all_spend > 0 else 0
+            
+        # Fetch relevance mappings from DB
+        relevance_mappings = {}
+        db_relevance = db.query(models.SubcategoryRelevanceMapping).all()
+        for r in db_relevance:
+            relevance_mappings[r.subcategory] = 'YES' if r.is_relevant == 1 else 'NO'
+            
+        summary_df['Relevant'] = summary_df['Category'].map(relevance_mappings).fillna('YES')
+        df = summary_df
+    else:
+        # Fallback mapping for existing processed files
+        df = df.rename(columns={
+            'OFFDisplay_Spend_Share%': 'OFFDisplay_Spend_Share_Percentage',
+            'ONDisplay_Spend_Share%': 'ONDisplay_Spend_Share_Percentage',
+            'Search_Spend_Share%': 'Search_Spend_Share_Percentage',
+            'Sales_Share%': 'Sales_Share_Percentage',
+            'Unit_Share%': 'Unit_Share_Percentage',
+            'Category': 'Category' # Ensure Category exists
+        })
+        if 'Relevant' not in df.columns:
+            relevance_mappings = {}
+            db_relevance = db.query(models.SubcategoryRelevanceMapping).all()
+            for r in db_relevance:
+                relevance_mappings[r.subcategory] = 'YES' if r.is_relevant == 1 else 'NO'
+            df['Relevant'] = df['Category'].map(relevance_mappings).fillna('YES')
+
     return {"data": df.fillna(0).to_dict(orient="records")}
 
-def update_produce_relevance(category: str, relevant: bool):
+def update_produce_relevance(db: Session, category: str, relevant: bool):
+    from .models import SubcategoryRelevanceMapping
+    
+    mapping = db.query(SubcategoryRelevanceMapping).filter(SubcategoryRelevanceMapping.subcategory == category).first()
+    is_rel_val = 1 if relevant else 0
+    
+    if mapping:
+        mapping.is_relevant = is_rel_val
+    else:
+        mapping = SubcategoryRelevanceMapping(subcategory=category, is_relevant=is_rel_val)
+        db.add(mapping)
+    
+    db.commit()
     return {"category": category, "relevant": relevant, "status": "updated"}
 
 # Mapping delegation
@@ -756,3 +914,139 @@ def save_model_groups_data(file_id: str, groups: List[Any], db: Session):
             
     db.commit()
     return {"status": "success", "file_id": file_id, "groups": groups}
+
+# ==========================================================
+# BRAND EXCLUSION ANALYSIS
+# ==========================================================
+
+STOP_WORDS = {"a", "an", "and", "the", "of", "for", "to", "in", "on", "at", "by", "with"}
+
+def _clean_text_basic(text: Any) -> str:
+    if not isinstance(text, str):
+        return ""
+    lowered = text.lower()
+    letters_only = re.sub(r"[^a-z\s]", "", lowered)
+    words = [word for word in letters_only.split() if word and word not in STOP_WORDS]
+    return "".join(words)
+
+def _best_fuzzy_score_basic(value: str, candidates: List[str]) -> float:
+    best = 0.0
+    for candidate in candidates:
+        if not candidate:
+            continue
+        score = SequenceMatcher(None, value, candidate).ratio() * 100
+        if score > best:
+            best = score
+    return best
+
+async def get_brand_exclusion_data(file_id: str):
+    df = load_data(file_id)
+    
+    # Resolve columns
+    cols_upper = {c.upper(): c for c in df.columns}
+    brand_col = (
+        cols_upper.get("UNIQUE_BRAND_NAME")
+        or cols_upper.get("UNIQUE_ADV_NAME")
+        or cols_upper.get("BRAND")
+        or df.columns[0]
+    )
+    sale_col = next((c for c in df.columns if c.upper() in ["O_SALE", "SALES", "TOTAL_SALES"]), None)
+    spend_col = next(
+        (c for c in df.columns if c.upper() in [
+            "TOTAL_SPEND", "SPEND", "SPEND_TOTAL", "TOTAL",
+            "M_SEARCH_SPEND", "M_ON_DIS_TOTAL_SPEND", "M_OFF_DIS_TOTAL_SPEND"
+        ]),
+        None
+    )
+    unit_col = next((c for c in df.columns if c.upper() in ["O_UNIT", "UNITS", "TOTAL_UNITS"]), None)
+    exclude_col = cols_upper.get("EXCLUDE_FLAG", None)
+    combine_col = cols_upper.get("COMBINE_FLAG", None)
+
+    # If no single spend column, derive total from components
+    spend_cols_present = [c for c in df.columns if c.upper() in [
+        "M_SEARCH_SPEND", "M_ON_DIS_TOTAL_SPEND", "M_OFF_DIS_TOTAL_SPEND"
+    ]]
+    if not spend_col and spend_cols_present:
+        df["_total_spend_derived"] = sum(_coerce_numeric(df[c]) for c in spend_cols_present)
+        spend_col = "_total_spend_derived"
+
+    # Clean numeric
+    for col in [sale_col, spend_col, unit_col]:
+        if col:
+            df[col] = _coerce_numeric(df[col])
+
+    # Pivot by brand
+    agg_dict = {}
+    if sale_col: agg_dict[sale_col] = "sum"
+    if spend_col: agg_dict[spend_col] = "sum"
+    if unit_col: agg_dict[unit_col] = "sum"
+    if exclude_col: agg_dict[exclude_col] = "max"
+    if combine_col: agg_dict[combine_col] = "max"
+
+    if not agg_dict:
+        return {
+            "file_id": str(file_id),
+            "rows": [],
+            "summary": {"combine_flag_count": 0, "exclude_flag_count": 0, "issue_counts": {}},
+            "warnings": ["No recognizable sales/spend/unit columns found in the uploaded file."]
+        }
+
+    pivot = df.groupby(brand_col).agg(agg_dict).reset_index()
+    
+    # Renaming for consistency with automation script naming if needed, 
+    # but we'll use our internal logical names for the response.
+    
+    total_sale = pivot[sale_col].sum() if sale_col else 0
+    total_spend = pivot[spend_col].sum() if spend_col else 0
+    total_unit = pivot[unit_col].sum() if unit_col else 0
+
+    # Calculate shares
+    pivot["sales_share"] = (pivot[sale_col] / total_sale * 100).round(2) if total_sale else 0
+    pivot["spend_share"] = (pivot[spend_col] / total_spend * 100).round(2) if total_spend else 0
+    pivot["unit_share"] = (pivot[unit_col] / total_unit * 100).round(2) if total_unit else 0
+
+    # Apply flags (Mocked logic for mapping/private until we have real lists)
+    # In a real scenario, we'd load these from the paths identified in io.py
+    pivot["private_brand"] = 0 
+    pivot["mapping_issue"] = 0
+    pivot["exclude_flag"] = (pivot[exclude_col].astype(int) if exclude_col else 0)
+    pivot["combine_flag"] = (pivot[combine_col].astype(int) if combine_col else None)
+    pivot["reason_issue_type"] = "none"
+    
+    # Update flags based on metrics if needed (automation logic)
+    pivot.loc[(pivot["sales_share"] < 0.1) & (pivot["exclude_flag"] == 0), "reason_issue_type"] = "low_share"
+    
+    # Format rows
+    rows = []
+    for _, row in pivot.iterrows():
+        rows.append({
+            "brand": str(row[brand_col]),
+            "sales_share": float(row["sales_share"]),
+            "spend_share": float(row["spend_share"]),
+            "unit_share": float(row["unit_share"]),
+            "private_brand": int(row["private_brand"]),
+            "mapping_issue": int(row["mapping_issue"]),
+            "combine_flag": int(row["combine_flag"]) if pd.notna(row["combine_flag"]) else None,
+            "exclude_flag": int(row["exclude_flag"]),
+            "reason_issue_type": str(row["reason_issue_type"]),
+            "sum_sales": float(row[sale_col]) if sale_col else 0,
+            "sum_spend": float(row[spend_col]) if spend_col else 0,
+            "sum_units": float(row[unit_col]) if unit_col else 0
+        })
+    
+    # Summary
+    summary = {
+        "combine_flag_count": int(pivot["combine_flag"].notna().sum()),
+        "exclude_flag_count": int((pivot["exclude_flag"] == 1).sum()),
+        "issue_counts": {
+            "low_share": int((pivot["reason_issue_type"] == "low_share").sum()),
+            "none": int((pivot["reason_issue_type"] == "none").sum())
+        }
+    }
+
+    return {
+        "file_id": str(file_id),
+        "rows": rows,
+        "summary": summary,
+        "warnings": []
+    }

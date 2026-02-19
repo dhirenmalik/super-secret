@@ -85,6 +85,7 @@ class Model(Base):
     current_stage_id = Column(Integer, ForeignKey("workflow_stages.stage_id"))
     created_by = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    is_deleted = Column(Boolean, default=False)
     
     # Relationships
     creator = relationship("User", back_populates="created_models")
@@ -116,6 +117,7 @@ class ModelFile(Base):
     uploaded_at = Column(DateTime, default=datetime.utcnow)
     status = Column(String(50), default="uploaded")
     remarks = Column(String(500))
+    is_analysis = Column(Boolean, default=False)
     
     model = relationship("Model", back_populates="files")
     comments = relationship("ReportComment", back_populates="file", cascade="all, delete-orphan")
@@ -167,3 +169,22 @@ class Notification(Base):
     message = Column(String(500))
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+# ==========================================================
+# PRODUCTION DATA MANAGEMENT
+# ==========================================================
+class RawDataFile(Base):
+    __tablename__ = "raw_data_files"
+    raw_file_id = Column(Integer, primary_key=True)
+    file_name = Column(String(255), nullable=False)
+    storage_type = Column(String(50))  # local / s3 / azure
+    file_path = Column(String(500))    # full path or object key
+    bucket_name = Column(String(255))
+    file_type = Column(String(50))     # csv / parquet
+    file_size = Column(Integer)
+    checksum = Column(String(128))
+    uploaded_by = Column(Integer, ForeignKey("users.user_id"))
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String(50), default="uploaded")
+    row_count = Column(Integer)
+    remarks = Column(String(500))

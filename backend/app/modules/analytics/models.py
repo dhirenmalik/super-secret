@@ -83,3 +83,10 @@ class ChartSelection(Base):
     file_id = Column(String(255), nullable=False) # Reference to uploaded file ID
     l2_values = Column(String(2000)) # Stored as comma-separated or JSON string
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class SubcategoryRelevanceMapping(Base):
+    __tablename__ = "subcategory_relevance_mappings"
+    mapping_id = Column(Integer, primary_key=True)
+    subcategory = Column(String(150), nullable=False, unique=True)
+    is_relevant = Column(Numeric(1), default=1) # 1 for YES, 0 for NO
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

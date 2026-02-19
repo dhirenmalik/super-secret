@@ -32,13 +32,14 @@ def create_model(db: Session, model_in: ModelCreate, user_id: int) -> Model:
     db.refresh(db_model)
     return db_model
 
-def register_file(db: Session, file_name: str, file_path: str, model_id: int = None, uploaded_by: int = None, category: str = None) -> ModelFile:
+def register_file(db: Session, file_name: str, file_path: str, model_id: int = None, uploaded_by: int = None, category: str = None, is_analysis: bool = False) -> ModelFile:
     db_file = ModelFile(
         model_id=model_id,
         file_name=file_name,
         file_path=file_path,
         file_category=category,
         file_type="csv" if file_name.lower().endswith(".csv") else "parquet",
+        is_analysis=is_analysis,
         uploaded_by=uploaded_by,
         status="uploaded"
     )
@@ -46,3 +47,11 @@ def register_file(db: Session, file_name: str, file_path: str, model_id: int = N
     db.commit()
     db.refresh(db_file)
     return db_file
+
+def soft_delete_model(db: Session, model_id: int) -> bool:
+    db_model = db.query(Model).filter(Model.model_id == model_id).first()
+    if db_model:
+        db_model.is_deleted = True
+        db.commit()
+        return True
+    return False
