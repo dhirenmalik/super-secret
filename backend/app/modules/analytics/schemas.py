@@ -5,6 +5,7 @@ from pydantic import BaseModel
 class RelevanceUpdateRequest(BaseModel):
     category: str
     relevant: bool
+    model_id: Optional[int] = None
 
 # Stack Schemas
 class StackBase(BaseModel):

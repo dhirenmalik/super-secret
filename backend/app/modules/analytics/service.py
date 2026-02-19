@@ -156,6 +156,64 @@ def load_data(file_id: str) -> pd.DataFrame:
         return pd.read_parquet(saved_path)
     return pd.read_csv(saved_path)
 
+def get_persisted_result(db: Session, file_id: int, result_type: str) -> Optional[Dict[str, Any]]:
+    """Retrieves a persisted analytical result from the database."""
+    from .models import AnalyticalResult
+    db_result = db.query(AnalyticalResult).filter(
+        AnalyticalResult.file_id == file_id,
+        AnalyticalResult.result_type == result_type
+    ).first()
+    
+    if db_result and db_result.result_data:
+        return json.loads(db_result.result_data)
+    return None
+
+def save_analytical_result(db: Session, file_id: int, result_type: str, data: Any):
+    """Persists an analytical result to the database."""
+    from .models import AnalyticalResult
+    
+    # Handle non-JSON compliant floats (NaN, Inf)
+    def clean_data(obj):
+        if isinstance(obj, float):
+            if np.isnan(obj) or np.isinf(obj):
+                return 0.0
+            return obj
+        if isinstance(obj, dict):
+            return {k: clean_data(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [clean_data(v) for v in obj]
+        return obj
+
+    data = clean_data(data)
+    serialized_data = json.dumps(data)
+    
+    # Avoid saving if file_id is 0 and no such file exists
+    if file_id == 0:
+        print(f"[WARNING] Skipping save for result {result_type} as file_id is 0")
+        return
+
+    db_result = db.query(AnalyticalResult).filter(
+        AnalyticalResult.file_id == file_id,
+        AnalyticalResult.result_type == result_type
+    ).first()
+    
+    if db_result:
+        db_result.result_data = serialized_data
+        db_result.created_at = datetime.utcnow()
+    else:
+        db_result = AnalyticalResult(
+            file_id=file_id,
+            result_type=result_type,
+            result_data=serialized_data
+        )
+        db.add(db_result)
+    
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Failed to save analytical result {result_type} for file {file_id}: {e}")
+
 async def handle_file_upload(db: Session, file: UploadFile, user_id: int, category: Optional[str] = None, model_id: Optional[int] = None, is_analysis: bool = False):
     from app.modules.governance import service as gov_service
     from app.modules.governance import models as gov_models
@@ -218,6 +276,16 @@ async def handle_file_upload(db: Session, file: UploadFile, user_id: int, catego
         is_analysis=is_analysis
     )
     
+    # Pre-calculate common analytical results to ensure they are persisted immediately
+    try:
+        # These are synchronous calls if they use the newly created df
+        # For simplicity, we just call them, and they will load the file and save the results
+        get_subcategory_summary_data(db, db_file.file_id)
+        get_l2_values_data(db, db_file.file_id)
+        get_correlation_data(db, db_file.file_id)
+    except Exception as e:
+        print(f"[WARNING] Failed to pre-calculate results during upload: {e}")
+
     return {
         "file_id": db_file.file_id, 
         "raw_file_id": raw_file.raw_file_id,
@@ -366,7 +434,13 @@ def delete_file_record(db: Session, file_id: int):
 # SERVICE INTERFACES
 # ==========================================================
 
-def get_subcategory_summary_data(file_id: str, start_date=None, end_date=None, group_by="l2", auto_bucket=False):
+def get_subcategory_summary_data(db: Session, file_id: str, start_date=None, end_date=None, group_by="l2", auto_bucket=False):
+    # Try to load from persistence
+    result_type = f"subcategory_summary_{group_by}_{start_date}_{end_date}"
+    persisted = get_persisted_result(db, int(file_id), result_type)
+    if persisted:
+        return persisted
+
     df = load_data(file_id)
     
     # Flexible Date Resolution
@@ -406,7 +480,7 @@ def get_subcategory_summary_data(file_id: str, start_date=None, end_date=None, g
     }
 
     rows = summary_df.to_dict(orient="records")
-    return {
+    result = {
         "file_id": str(file_id),
         "rows": rows,
         "date_bounds": frontend_date_bounds,
@@ -416,14 +490,32 @@ def get_subcategory_summary_data(file_id: str, start_date=None, end_date=None, g
         },
         "totals": totals
     }
+    
+    # Persist the result
+    save_analytical_result(db, int(file_id), result_type, result)
+    
+    return result
 
-def get_l2_values_data(file_id: str):
+def get_l2_values_data(db: Session, file_id: str):
+    result_type = "l2_values"
+    persisted = get_persisted_result(db, int(file_id), result_type)
+    if persisted:
+        return persisted
+
     df = load_data(file_id)
     col = "L2" if "L2" in df.columns else df.columns[0]
     l2_list = sorted(df[col].dropna().unique().tolist())
-    return {"file_id": file_id, "l2_values": l2_list}
+    result = {"file_id": file_id, "l2_values": l2_list}
+    
+    save_analytical_result(db, int(file_id), result_type, result)
+    return result
 
-def get_l3_analysis_data(file_id: str, limit_l2=None, rows=100, start_date=None, end_date=None):
+def get_l3_analysis_data(db: Session, file_id: str, limit_l2=None, rows=100, start_date=None, end_date=None):
+    result_type = f"l3_analysis_{limit_l2}_{rows}_{start_date}_{end_date}"
+    persisted = get_persisted_result(db, int(file_id), result_type)
+    if persisted:
+        return persisted
+
     df = load_data(file_id)
     
     # Flexible column mapping for L3
@@ -456,7 +548,7 @@ def get_l3_analysis_data(file_id: str, limit_l2=None, rows=100, start_date=None,
     df["l3"] = df[l3_col]
     
     data = df.head(rows).fillna(0).to_dict(orient="records")
-    return {
+    result = {
         "file_id": str(file_id),
         "rows": data,
         "date_bounds": {"start_date": "N/A", "end_date": "N/A"},
@@ -466,8 +558,16 @@ def get_l3_analysis_data(file_id: str, limit_l2=None, rows=100, start_date=None,
             "row_count": len(df.head(rows))
         }
     }
+    
+    save_analytical_result(db, int(file_id), result_type, result)
+    return result
 
-def get_correlation_data(file_id: str):
+def get_correlation_data(db: Session, file_id: str):
+    result_type = "correlation"
+    persisted = get_persisted_result(db, int(file_id), result_type)
+    if persisted:
+        return persisted
+
     df = load_data(file_id)
     
     # Pearson correlation of O_SALE across L2 values
@@ -487,16 +587,23 @@ def get_correlation_data(file_id: str):
         # Ensure all values are JSON serializable (no NaN/Inf)
         matrix = corr.replace([np.inf, -np.inf], 0).fillna(0).values.tolist()
         
-        return {
+        result = {
             "file_id": str(file_id),
             "l2_values": l2_values,
             "matrix": matrix
         }
+        save_analytical_result(db, int(file_id), result_type, result)
+        return result
     except Exception as e:
         print(f"Correlation error: {e}")
         return {"file_id": str(file_id), "l2_values": [], "matrix": []}
 
-def get_weekly_sales_data(file_id: str, metric="sales"):
+def get_weekly_sales_data(db: Session, file_id: str, metric="sales"):
+    result_type = f"weekly_sales_{metric}"
+    persisted = get_persisted_result(db, int(file_id), result_type)
+    if persisted:
+        return persisted
+
     df = load_data(file_id)
     
     # Resolve metric column
@@ -541,11 +648,13 @@ def get_weekly_sales_data(file_id: str, metric="sales"):
         # Convert index back to column for series list
         series = pivot.reset_index().to_dict(orient='records')
         
-        return {
+        result = {
             "file_id": str(file_id),
             "l2_values": l2_values,
             "series": series
         }
+        save_analytical_result(db, int(file_id), result_type, result)
+        return result
     except Exception as e:
         print(f"Weekly sales pivot error: {e}")
         return {"file_id": str(file_id), "series": [], "l2_values": []}
@@ -554,7 +663,18 @@ def get_model_group_weekly_sales_data(file_id: str):
     # This is a legacy/simple version by group names
     return {"file_id": str(file_id), "group_names": [], "series": []}
 
-def get_model_group_weekly_metrics_data(file_id: str, payload: schemas.ModelGroupWeeklyMetricsRequest):
+def get_model_group_weekly_metrics_data(db: Session, file_id: str, payload: schemas.ModelGroupWeeklyMetricsRequest):
+    # Try persistence first
+    # Create a unique key based on payload
+    import hashlib
+    payload_str = json.dumps(payload.dict(), sort_keys=True)
+    payload_hash = hashlib.md5(payload_str.encode()).hexdigest()
+    result_type = f"model_group_metrics_{payload_hash}"
+    
+    persisted = get_persisted_result(db, int(file_id), result_type)
+    if persisted:
+        return persisted
+
     df = load_data(file_id)
     
     # Column mapping
@@ -664,11 +784,14 @@ def get_model_group_weekly_metrics_data(file_id: str, payload: schemas.ModelGrou
     for s in series:
         s["week_start_date"] = s[date_col].strftime("%Y-%m-%d")
         
-    return {
+    result = {
         "file_id": str(file_id),
         "series": series,
         "yoy": yoy_out
     }
+    
+    save_analytical_result(db, int(file_id), result_type, result)
+    return result
 
 def get_chart_selection_data(db: Session, file_id: str):
     selection = db.query(models.ChartSelection).filter(models.ChartSelection.file_id == file_id).first()
@@ -763,21 +886,42 @@ def get_file_preview_data(file_id: str, rows: int = 5):
 # ==========================================================
 # EDA PRODUCE CATEGORY
 # ==========================================================
-async def get_exclude_analysis_data():
-    db = SessionLocal()
+async def get_exclude_analysis_data(db: Session, model_id: Optional[int] = None):
+    print(f"[DEBUG] Fetching exclude analysis for model_id={model_id}")
+    # Try persistence first
+    result_type = f"exclude_analysis_{model_id}"
+    
+    # We need a file_id to link the result to. 
+    # Use the latest file's ID if available, otherwise use 0 or a constant for global/default
+    latest = get_latest_file_record(db, category="exclude_flags_raw", model_id=model_id)
+    file_id = latest.file_id if latest else 0
+    print(f"[DEBUG] Latest file: {latest.file_id if latest else 'None'}, file_id used: {file_id}")
+    
+    persisted = get_persisted_result(db, file_id, result_type)
+    if persisted:
+        print(f"[DEBUG] Returning persisted result for model_id={model_id}")
+        return persisted
+
+    print(f"[DEBUG] No persisted result found. Loading from file...")
     try:
-        latest = get_latest_file_record(db, category="exclude_flags_raw")
         if not latest or not os.path.exists(latest.file_path):
+            print(f"[DEBUG] No latest file or file missing. Checking EDA_DATA_PATH: {EDA_DATA_PATH}")
             if os.path.exists(EDA_DATA_PATH):
                 df = pd.read_csv(EDA_DATA_PATH)
             else:
+                print(f"[DEBUG] EDA_DATA_PATH missing. Returning empty data.")
                 return {"data": []}
         else:
+            print(f"[DEBUG] Reading from latest file: {latest.file_path}")
             df = pd.read_csv(latest.file_path)
+    except Exception as e:
+        print(f"[ERROR] Failed to load data for exclude analysis: {e}")
+        return {"data": []}
     finally:
-        db.close()
+        pass # db is managed by FastAPI
 
     if df.empty:
+        print("[DEBUG] Dataframe is empty.")
         return {"data": []}
 
     # Grouping logic if raw file
@@ -804,15 +948,26 @@ async def get_exclude_analysis_data():
         total_units = summary_df[units_col].sum() if units_col else 1
         total_all_spend = summary_df[available_spend_cols].sum().sum() if available_spend_cols else 1
         
+        # Consistently use 'Category' for the frontend
+        if 'Category' not in summary_df.columns:
+            if 'L3' in summary_df.columns:
+                summary_df = summary_df.rename(columns={'L3': 'Category'})
+            elif 'category' in summary_df.columns:
+                summary_df = summary_df.rename(columns={'category': 'Category'})
+                
         summary_df = summary_df.rename(columns={
-            'L3': 'Category',
             sales_col: 'Total_Sales',
             units_col: 'Total_Units'
         })
         
-        summary_df['Sales_Share_Percentage'] = (summary_df['Total_Sales'] / total_sales * 100) if total_sales > 0 else 0
-        summary_df['Unit_Share_Percentage'] = (summary_df['Total_Units'] / total_units * 100) if total_units > 0 else 0
-        summary_df['AVG_PRICE'] = (summary_df['Total_Sales'] / summary_df['Total_Units']) if 'Total_Units' in summary_df and (summary_df['Total_Units'] > 0).any() else 0
+        summary_df['Sales_Share_Percentage'] = (summary_df['Total_Sales'] / total_sales * 100).fillna(0) if total_sales > 0 else 0
+        summary_df['Unit_Share_Percentage'] = (summary_df['Total_Units'] / total_units * 100).fillna(0) if total_units > 0 else 0
+        
+        # Safe division for AVG_PRICE
+        summary_df['AVG_PRICE'] = summary_df.apply(
+            lambda x: x['Total_Sales'] / x['Total_Units'] if x['Total_Units'] > 0 else 0, 
+            axis=1
+        )
         
         if 'M_SEARCH_SPEND' in summary_df.columns:
             summary_df['Search_Spend_Share_Percentage'] = (summary_df['M_SEARCH_SPEND'] / total_all_spend * 100) if total_all_spend > 0 else 0
@@ -821,9 +976,11 @@ async def get_exclude_analysis_data():
         if 'M_ON_DIS_TOTAL_SPEND' in summary_df.columns:
             summary_df['ONDisplay_Spend_Share_Percentage'] = (summary_df['M_ON_DIS_TOTAL_SPEND'] / total_all_spend * 100) if total_all_spend > 0 else 0
             
-        # Fetch relevance mappings from DB
+        # Fetch relevance mappings from DB scoped to this model
         relevance_mappings = {}
-        db_relevance = db.query(models.SubcategoryRelevanceMapping).all()
+        db_relevance = db.query(models.SubcategoryRelevanceMapping).filter(
+            models.SubcategoryRelevanceMapping.model_id == model_id
+        ).all()
         for r in db_relevance:
             relevance_mappings[r.subcategory] = 'YES' if r.is_relevant == 1 else 'NO'
             
@@ -831,37 +988,56 @@ async def get_exclude_analysis_data():
         df = summary_df
     else:
         # Fallback mapping for existing processed files
-        df = df.rename(columns={
+        rename_map = {
             'OFFDisplay_Spend_Share%': 'OFFDisplay_Spend_Share_Percentage',
             'ONDisplay_Spend_Share%': 'ONDisplay_Spend_Share_Percentage',
             'Search_Spend_Share%': 'Search_Spend_Share_Percentage',
             'Sales_Share%': 'Sales_Share_Percentage',
             'Unit_Share%': 'Unit_Share_Percentage',
-            'Category': 'Category' # Ensure Category exists
-        })
-        if 'Relevant' not in df.columns:
+            'L3': 'Category',
+            'category': 'Category'
+        }
+        df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+        
+        if 'Category' in df.columns and 'Relevant' not in df.columns:
             relevance_mappings = {}
-            db_relevance = db.query(models.SubcategoryRelevanceMapping).all()
+            db_relevance = db.query(models.SubcategoryRelevanceMapping).filter(
+                models.SubcategoryRelevanceMapping.model_id == model_id
+            ).all()
             for r in db_relevance:
                 relevance_mappings[r.subcategory] = 'YES' if r.is_relevant == 1 else 'NO'
             df['Relevant'] = df['Category'].map(relevance_mappings).fillna('YES')
+        elif 'Relevant' not in df.columns:
+            df['Relevant'] = 'YES'
 
-    return {"data": df.fillna(0).to_dict(orient="records")}
+    result = {"data": df.fillna(0).to_dict(orient="records")}
+    save_analytical_result(db, file_id, result_type, result)
+    return result
 
-def update_produce_relevance(db: Session, category: str, relevant: bool):
-    from .models import SubcategoryRelevanceMapping
+def update_produce_relevance(db: Session, category: str, relevant: bool, model_id: Optional[int] = None):
+    from .models import SubcategoryRelevanceMapping, AnalyticalResult
     
-    mapping = db.query(SubcategoryRelevanceMapping).filter(SubcategoryRelevanceMapping.subcategory == category).first()
+    mapping = db.query(SubcategoryRelevanceMapping).filter(
+        SubcategoryRelevanceMapping.subcategory == category,
+        SubcategoryRelevanceMapping.model_id == model_id
+    ).first()
     is_rel_val = 1 if relevant else 0
     
     if mapping:
         mapping.is_relevant = is_rel_val
     else:
-        mapping = SubcategoryRelevanceMapping(subcategory=category, is_relevant=is_rel_val)
+        mapping = SubcategoryRelevanceMapping(subcategory=category, is_relevant=is_rel_val, model_id=model_id)
         db.add(mapping)
     
+    # Invalidate caches that depend on relevance mappings
+    # We clear both exclude_analysis and brand_exclusion for this model
+    cache_types = [f"exclude_analysis_{model_id}", f"brand_exclusion_{model_id}"]
+    db.query(AnalyticalResult).filter(
+        AnalyticalResult.result_type.in_(cache_types)
+    ).delete(synchronize_session=False)
+
     db.commit()
-    return {"category": category, "relevant": relevant, "status": "updated"}
+    return {"category": category, "relevant": relevant, "status": "updated", "cache_cleared": cache_types}
 
 # Mapping delegation
 def get_model_groups_data(file_id: str, db: Session):
@@ -939,10 +1115,34 @@ def _best_fuzzy_score_basic(value: str, candidates: List[str]) -> float:
             best = score
     return best
 
-async def get_brand_exclusion_data(file_id: str):
+async def get_brand_exclusion_data(file_id: str, db: Session, model_id: Optional[int] = None):
+    # Try persistence first
+    result_type = f"brand_exclusion_{model_id}"
+    persisted = get_persisted_result(db, int(file_id), result_type)
+    if persisted:
+        return persisted
+
     df = load_data(file_id)
     
     # Resolve columns
+    cols_upper = {c.upper(): c for c in df.columns}
+    cat_col = cols_upper.get("CATEGORY") or cols_upper.get("L3")
+    
+    # Filter by subcategory relevance if model_id provided
+    if db and model_id and cat_col in df.columns:
+        from .models import SubcategoryRelevanceMapping
+        # Fetch relevance mappings for this model
+        db_relevance = db.query(SubcategoryRelevanceMapping).filter(
+            SubcategoryRelevanceMapping.model_id == model_id
+        ).all()
+        
+        relevance_mappings = {r.subcategory: r.is_relevant for r in db_relevance}
+        
+        # Filter dataframe to only include relevant subcategories
+        # By default, assume YES (1) if no mapping exists
+        df = df[df[cat_col].map(lambda x: relevance_mappings.get(x, 1) == 1)].copy()
+
+    # Re-calculate cols_upper for brand search after potential filtering/copying
     cols_upper = {c.upper(): c for c in df.columns}
     brand_col = (
         cols_upper.get("UNIQUE_BRAND_NAME")
@@ -1044,9 +1244,12 @@ async def get_brand_exclusion_data(file_id: str):
         }
     }
 
-    return {
+    result = {
         "file_id": str(file_id),
         "rows": rows,
         "summary": summary,
         "warnings": []
     }
+    
+    save_analytical_result(db, int(file_id), result_type, result)
+    return result

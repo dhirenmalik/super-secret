@@ -6,7 +6,9 @@ from .modules.analytics.models import (
     EDAResult,
     SubcatAnalysis,
     ModelGroup,
-    ModelGroupL2
+    ModelGroupL2,
+    AnalyticalResult,
+    SubcategoryRelevanceMapping
 )
 
 from .modules.governance.models import (

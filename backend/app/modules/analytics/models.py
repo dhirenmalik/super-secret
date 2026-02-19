@@ -84,9 +84,24 @@ class ChartSelection(Base):
     l2_values = Column(String(2000)) # Stored as comma-separated or JSON string
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+from sqlalchemy import UniqueConstraint
+
 class SubcategoryRelevanceMapping(Base):
     __tablename__ = "subcategory_relevance_mappings"
     mapping_id = Column(Integer, primary_key=True)
-    subcategory = Column(String(150), nullable=False, unique=True)
+    model_id = Column(Integer, ForeignKey("models.model_id"), nullable=True) # Optional for now to keep global fallback
+    subcategory = Column(String(150), nullable=False)
     is_relevant = Column(Numeric(1), default=1) # 1 for YES, 0 for NO
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint('model_id', 'subcategory', name='_model_subcat_uc'),)
+
+class AnalyticalResult(Base):
+    __tablename__ = "analytical_results"
+    result_id = Column(Integer, primary_key=True)
+    file_id = Column(Integer, ForeignKey("model_files.file_id"), nullable=False)
+    result_type = Column(String(100), nullable=False) # e.g., 'subcategory_summary', 'l3_analysis', 'correlation', 'weekly_sales', 'brand_exclusion'
+    result_data = Column(String(1000000)) # JSON encoded string
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint('file_id', 'result_type', name='_file_result_uc'),)

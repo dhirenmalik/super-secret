@@ -10,8 +10,11 @@ router = APIRouter(tags=["analytics"])
 
 # EDA Produce Category
 @router.get("/eda/exclude-analysis", response_model=Dict[str, Any])
-async def get_exclude_analysis():
-    return await service.get_exclude_analysis_data()
+async def get_exclude_analysis(
+    model_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db)
+):
+    return await service.get_exclude_analysis_data(db, model_id)
 
 @router.post("/eda/relevance")
 async def update_relevance(
@@ -19,7 +22,7 @@ async def update_relevance(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    return service.update_produce_relevance(db, payload.category, payload.relevant)
+    return service.update_produce_relevance(db, payload.category, payload.relevant, payload.model_id)
 
 # File Management & Analysis
 @router.post("/files/upload")
@@ -68,13 +71,14 @@ def get_subcategory_summary(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     group_by: str = "l2",
-    auto_bucket: bool = False
+    auto_bucket: bool = False,
+    db: Session = Depends(get_db)
 ):
-    return service.get_subcategory_summary_data(file_id, start_date, end_date, group_by, auto_bucket)
+    return service.get_subcategory_summary_data(db, file_id, start_date, end_date, group_by, auto_bucket)
 
 @router.get("/files/{file_id}/l2-values", response_model=schemas.L2ValuesResponse)
-def get_l2_values(file_id: str):
-    return service.get_l2_values_data(file_id)
+def get_l2_values(file_id: str, db: Session = Depends(get_db)):
+    return service.get_l2_values_data(db, file_id)
 
 @router.get("/files/{file_id}/model-groups", response_model=schemas.ModelGroupsResponse)
 def get_model_groups(file_id: str, db: Session = Depends(get_db)):
@@ -98,25 +102,26 @@ def get_l3_analysis(
     limit_l2: Optional[str] = None,
     rows: int = 100,
     start_date: Optional[str] = None,
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db)
 ):
-    return service.get_l3_analysis_data(file_id, limit_l2, rows, start_date, end_date)
+    return service.get_l3_analysis_data(db, file_id, limit_l2, rows, start_date, end_date)
 
 @router.get("/files/{file_id}/correlation", response_model=schemas.CorrelationResponse)
-def get_correlation(file_id: str):
-    return service.get_correlation_data(file_id)
+def get_correlation(file_id: str, db: Session = Depends(get_db)):
+    return service.get_correlation_data(db, file_id)
 
 @router.get("/files/{file_id}/weekly-sales", response_model=schemas.WeeklySalesResponse)
-def get_weekly_sales(file_id: str, metric: str = "sales"):
-    return service.get_weekly_sales_data(file_id, metric)
+def get_weekly_sales(file_id: str, metric: str = "sales", db: Session = Depends(get_db)):
+    return service.get_weekly_sales_data(db, file_id, metric)
 
 @router.get("/files/{file_id}/model-group-weekly-sales", response_model=schemas.ModelGroupWeeklySalesResponse)
-def get_model_group_weekly_sales(file_id: str):
-    return service.get_model_group_weekly_sales_data(file_id)
+def get_model_group_weekly_sales(file_id: str, db: Session = Depends(get_db)):
+    return service.get_model_group_weekly_sales_data(db, file_id)
 
 @router.post("/files/{file_id}/model-group-weekly-metrics", response_model=schemas.ModelGroupWeeklyMetricsResponse)
-def get_model_group_weekly_metrics(file_id: str, payload: schemas.ModelGroupWeeklyMetricsRequest):
-    return service.get_model_group_weekly_metrics_data(file_id, payload)
+def get_model_group_weekly_metrics(file_id: str, payload: schemas.ModelGroupWeeklyMetricsRequest, db: Session = Depends(get_db)):
+    return service.get_model_group_weekly_metrics_data(db, file_id, payload)
 
 @router.get("/files/{file_id}/selections", response_model=schemas.ChartSelectionResponse)
 def get_chart_selection(file_id: str, db: Session = Depends(get_db)):
@@ -140,5 +145,10 @@ def get_report_comments(file_id: str, db: Session = Depends(get_db)):
     return service.get_report_comments_data(db, file_id)
 
 @router.get("/files/{file_id}/brand-exclusion", response_model=schemas.BrandExclusionResponse)
-async def get_brand_exclusion(file_id: str):
-    return await service.get_brand_exclusion_data(file_id)
+async def get_brand_exclusion(
+    file_id: str,
+    model_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    return await service.get_brand_exclusion_data(file_id, db, model_id)
