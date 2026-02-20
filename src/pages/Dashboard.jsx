@@ -55,7 +55,7 @@ export default function Dashboard() {
 
             // Load pending items for reviewers
             if (user && (user.role === 'reviewer' || user.role === 'admin')) {
-                const files = await fetchFiles(token);
+                const files = await fetchFiles(true, token);
                 const pending = files.filter(f => f.status === 'pending');
                 setPendingItems(pending);
             }

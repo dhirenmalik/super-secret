@@ -69,7 +69,7 @@ class SubcategorySummaryTotals(BaseModel):
     total_spends: float
 
 class SubcategorySummaryResponse(BaseModel):
-    file_id: str
+    file_id: Any
     rows: List[SubcategorySummaryRow]
     date_bounds: Dict[str, str]
     meta: SubcategorySummaryMeta
@@ -77,7 +77,7 @@ class SubcategorySummaryResponse(BaseModel):
 
 # L2 Values
 class L2ValuesResponse(BaseModel):
-    file_id: str
+    file_id: Any
     l2_values: List[str]
 
 # Model Group Mapping
@@ -86,7 +86,7 @@ class ModelGroupRow(BaseModel):
     l2_values: List[str]
 
 class ModelGroupsResponse(BaseModel):
-    file_id: str
+    file_id: Any
     groups: List[ModelGroupRow]
 
 class ModelGroupsSave(BaseModel):
@@ -94,7 +94,7 @@ class ModelGroupsSave(BaseModel):
 
 # Auto Grouping
 class AutoGroupingPreviewResponse(BaseModel):
-    file_id: str
+    file_id: Any
     groups: List[ModelGroupRow]
     historical_groups: List[ModelGroupRow]
     unassigned_l2: List[str]
@@ -106,7 +106,7 @@ class AutoGroupingApplyRequest(BaseModel):
 
 # Correlation
 class CorrelationResponse(BaseModel):
-    file_id: str
+    file_id: Any
     l2_values: List[str]
     matrix: List[List[float]]
 
@@ -119,13 +119,13 @@ class ModelGroupWeeklyMetricsRequest(BaseModel):
     l2_values: Optional[List[str]] = None
 
 class ModelGroupWeeklyMetricsResponse(BaseModel):
-    file_id: str
+    file_id: Any
     series: List[Dict[str, Any]]
     yoy: Optional[Dict[str, Any]] = None
 
 # Weekly Sales
 class WeeklySalesResponse(BaseModel):
-    file_id: str
+    file_id: Any
     l2_values: List[str]
     series: List[Dict[str, Any]]
 
@@ -144,14 +144,14 @@ class L3AnalysisMeta(BaseModel):
     row_count: int
 
 class L3AnalysisResponse(BaseModel):
-    file_id: str
+    file_id: Any
     rows: List[L3AnalysisRow]
     date_bounds: Dict[str, str]
     meta: L3AnalysisMeta
 
 # Model Group Weekly Sales
 class ModelGroupWeeklySalesResponse(BaseModel):
-    file_id: str
+    file_id: Any
     group_names: List[str]
     series: List[Dict[str, Any]]
 
@@ -160,7 +160,7 @@ class ChartSelectionRequest(BaseModel):
     l2_values: List[str]
 
 class ChartSelectionResponse(BaseModel):
-    file_id: str
+    file_id: Any
     l2_values: List[str]
     updated_at: datetime
 
@@ -199,7 +199,7 @@ class BrandExclusionSummary(BaseModel):
     issue_counts: Dict[str, int]
 
 class BrandExclusionResponse(BaseModel):
-    file_id: str
+    file_id: Any
     rows: List[BrandExclusionRow]
     summary: BrandExclusionSummary
     warnings: List[str] = []

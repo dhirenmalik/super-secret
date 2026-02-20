@@ -4,8 +4,10 @@ import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 import { fetchFiles, fetchLatestFile, updateReportStatus } from '../api/kickoff';
 import ReportViewer from '../components/kickoff/ReportViewer';
+import { useAuth } from '../context/AuthContext';
 
 export default function KickoffReportReview() {
+    const { token } = useAuth();
     const step = steps.find((s) => s.slug === 'kickoff-report-review');
     const [fileId, setFileId] = useState('');
     const [reports, setReports] = useState([]);
@@ -13,7 +15,7 @@ export default function KickoffReportReview() {
 
     const loadReports = async () => {
         try {
-            const data = await fetchFiles();
+            const data = await fetchFiles(true, token);
             setReports(data || []);
         } catch (err) {
             console.error('Failed to load reports:', err);
