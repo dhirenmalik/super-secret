@@ -152,3 +152,11 @@ async def get_brand_exclusion(
     current_user = Depends(get_current_user)
 ):
     return await service.get_brand_exclusion_data(file_id, db, model_id)
+
+@router.post("/eda/brand-exclusion/update")
+async def update_brand_exclusion(
+    payload: schemas.BrandExclusionUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    return service.update_brand_exclusion_result(db, payload)

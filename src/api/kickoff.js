@@ -420,3 +420,19 @@ export const updateReportStatus = async (fileId, status, token = null) => {
     }
     return response.json();
 };
+export const updateBrandExclusion = async (payload, token = null) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/eda/brand-exclusion/update`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'Failed to update brand');
+    }
+    return response.json();
+};

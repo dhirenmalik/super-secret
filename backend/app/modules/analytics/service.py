@@ -13,6 +13,7 @@ from difflib import SequenceMatcher
 from app.core.database import SessionLocal
 from app.core import storage as file_storage
 from . import schemas, models
+from app.exclude_flag_automation.Exclude_Flag_function import exclude_flag_automation_function
 
 # ==========================================================
 # CONSTANTS & PATHS
@@ -1124,125 +1125,174 @@ async def get_brand_exclusion_data(file_id: str, db: Session, model_id: Optional
 
     df = load_data(file_id)
     
-    # Resolve columns
+    # 1. Resolve Relevance (Phase 1 Selection)
+    relevant_levels = []
+    cat_col = None
     cols_upper = {c.upper(): c for c in df.columns}
-    cat_col = cols_upper.get("CATEGORY") or cols_upper.get("L3")
+    cat_col = cols_upper.get("CATEGORY") or cols_upper.get("L3") or cols_upper.get("L2")
     
-    # Filter by subcategory relevance if model_id provided
-    if db and model_id and cat_col in df.columns:
+    if db and model_id and cat_col:
         from .models import SubcategoryRelevanceMapping
-        # Fetch relevance mappings for this model
         db_relevance = db.query(SubcategoryRelevanceMapping).filter(
-            SubcategoryRelevanceMapping.model_id == model_id
+            SubcategoryRelevanceMapping.model_id == model_id,
+            SubcategoryRelevanceMapping.is_relevant == 1
         ).all()
-        
-        relevance_mappings = {r.subcategory: r.is_relevant for r in db_relevance}
-        
-        # Filter dataframe to only include relevant subcategories
-        # By default, assume YES (1) if no mapping exists
-        df = df[df[cat_col].map(lambda x: relevance_mappings.get(x, 1) == 1)].copy()
-
-    # Re-calculate cols_upper for brand search after potential filtering/copying
-    cols_upper = {c.upper(): c for c in df.columns}
-    brand_col = (
-        cols_upper.get("UNIQUE_BRAND_NAME")
-        or cols_upper.get("UNIQUE_ADV_NAME")
-        or cols_upper.get("BRAND")
-        or df.columns[0]
-    )
-    sale_col = next((c for c in df.columns if c.upper() in ["O_SALE", "SALES", "TOTAL_SALES"]), None)
-    spend_col = next(
-        (c for c in df.columns if c.upper() in [
-            "TOTAL_SPEND", "SPEND", "SPEND_TOTAL", "TOTAL",
-            "M_SEARCH_SPEND", "M_ON_DIS_TOTAL_SPEND", "M_OFF_DIS_TOTAL_SPEND"
-        ]),
-        None
-    )
-    unit_col = next((c for c in df.columns if c.upper() in ["O_UNIT", "UNITS", "TOTAL_UNITS"]), None)
-    exclude_col = cols_upper.get("EXCLUDE_FLAG", None)
-    combine_col = cols_upper.get("COMBINE_FLAG", None)
-
-    # If no single spend column, derive total from components
-    spend_cols_present = [c for c in df.columns if c.upper() in [
-        "M_SEARCH_SPEND", "M_ON_DIS_TOTAL_SPEND", "M_OFF_DIS_TOTAL_SPEND"
-    ]]
-    if not spend_col and spend_cols_present:
-        df["_total_spend_derived"] = sum(_coerce_numeric(df[c]) for c in spend_cols_present)
-        spend_col = "_total_spend_derived"
-
-    # Clean numeric
-    for col in [sale_col, spend_col, unit_col]:
-        if col:
-            df[col] = _coerce_numeric(df[col])
-
-    # Pivot by brand
-    agg_dict = {}
-    if sale_col: agg_dict[sale_col] = "sum"
-    if spend_col: agg_dict[spend_col] = "sum"
-    if unit_col: agg_dict[unit_col] = "sum"
-    if exclude_col: agg_dict[exclude_col] = "max"
-    if combine_col: agg_dict[combine_col] = "max"
-
-    if not agg_dict:
+        relevant_levels = [r.subcategory for r in db_relevance]
+    
+    # If no relevance mappings found and we have model_id, 
+    # it means Phase 1 hasn't been completed or all are de-selected.
+    # For now, if no mapping, we might want a fallback or just empty.
+    # The requirement is Phase 1 then Phase 2.
+    if not relevant_levels:
+        # Fallback: if no relevance is set, maybe they haven't run Phase 1.
+        # We'll return an empty result or a warning.
         return {
             "file_id": str(file_id),
             "rows": [],
             "summary": {"combine_flag_count": 0, "exclude_flag_count": 0, "issue_counts": {}},
-            "warnings": ["No recognizable sales/spend/unit columns found in the uploaded file."]
+            "warnings": ["No relevant subcategories selected in Phase 1."]
         }
 
-    pivot = df.groupby(brand_col).agg(agg_dict).reset_index()
+    # 2. Load Auxiliary Data
+    exclude_flag_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "exclude_flag_automation"))
+    pb_path = os.path.join(exclude_flag_dir, "Private Brand.xlsx")
+    mi_path = os.path.join(exclude_flag_dir, "Mapping Issue Brand.xlsx")
+    hist_path = os.path.join(exclude_flag_dir, "combined_output.json")
     
-    # Renaming for consistency with automation script naming if needed, 
-    # but we'll use our internal logical names for the response.
-    
-    total_sale = pivot[sale_col].sum() if sale_col else 0
-    total_spend = pivot[spend_col].sum() if spend_col else 0
-    total_unit = pivot[unit_col].sum() if unit_col else 0
+    private_brand_df = pd.read_excel(pb_path) if os.path.exists(pb_path) else None
+    mapping_issue_df = pd.read_excel(mi_path) if os.path.exists(mi_path) else None
 
-    # Calculate shares
-    pivot["sales_share"] = (pivot[sale_col] / total_sale * 100).round(2) if total_sale else 0
-    pivot["spend_share"] = (pivot[spend_col] / total_spend * 100).round(2) if total_spend else 0
-    pivot["unit_share"] = (pivot[unit_col] / total_unit * 100).round(2) if total_unit else 0
+    # 3. Running Specialized Phase 2 Analysis
+    # We identify the level (L2 or L3) based on Cat Col
+    level_type = "L3" if "L3" in cat_col.upper() else "L2"
+    
+    try:
+        pivot_result = exclude_flag_automation_function(
+            df, 
+            relevant_levels, 
+            private_brand_df, 
+            mapping_issue_df, 
+            hist_path, 
+            level=level_type
+        )
+    except Exception as e:
+        print(f"[ERROR] Specialized Phase 2 analysis failed: {e}")
+        # Fallback to empty but schema-compliant response
+        return {
+            "file_id": str(file_id), 
+            "rows": [], 
+            "summary": {"combine_flag_count": 0, "exclude_flag_count": 0, "issue_counts": {"private_brand": 0, "mapping_issue": 0, "low_share": 0}},
+            "warnings": [f"Analysis Error: {str(e)}"]
+        }
 
-    # Apply flags (Mocked logic for mapping/private until we have real lists)
-    # In a real scenario, we'd load these from the paths identified in io.py
-    pivot["private_brand"] = 0 
-    pivot["mapping_issue"] = 0
-    pivot["exclude_flag"] = (pivot[exclude_col].astype(int) if exclude_col else 0)
-    pivot["combine_flag"] = (pivot[combine_col].astype(int) if combine_col else None)
-    pivot["reason_issue_type"] = "none"
-    
-    # Update flags based on metrics if needed (automation logic)
-    pivot.loc[(pivot["sales_share"] < 0.1) & (pivot["exclude_flag"] == 0), "reason_issue_type"] = "low_share"
-    
-    # Format rows
+    if pivot_result.empty:
+        return {
+            "file_id": str(file_id),
+            "rows": [],
+            "summary": {"combine_flag_count": 0, "exclude_flag_count": 0, "issue_counts": {}},
+            "warnings": ["No brands found for selected subcategories."]
+        }
+
+    # 4. Format rows for frontend
     rows = []
-    for _, row in pivot.iterrows():
-        rows.append({
-            "brand": str(row[brand_col]),
-            "sales_share": float(row["sales_share"]),
-            "spend_share": float(row["spend_share"]),
-            "unit_share": float(row["unit_share"]),
-            "private_brand": int(row["private_brand"]),
-            "mapping_issue": int(row["mapping_issue"]),
-            "combine_flag": int(row["combine_flag"]) if pd.notna(row["combine_flag"]) else None,
-            "exclude_flag": int(row["exclude_flag"]),
-            "reason_issue_type": str(row["reason_issue_type"]),
-            "sum_sales": float(row[sale_col]) if sale_col else 0,
-            "sum_spend": float(row[spend_col]) if spend_col else 0,
-            "sum_units": float(row[unit_col]) if unit_col else 0
-        })
+    # Map column names from specialized pivot to frontend expected names
+    col_map = {
+        'UNIQUE_BRAND_NAME': 'brand',
+        'Sum of O_SALE': 'sum_sales',
+        'Sum of TOTAL_SPEND': 'sum_spend',
+        'Sum of O_UNIT': 'sum_units',
+        'Sales Share': 'sales_share',
+        'Spend Share': 'spend_share',
+        'Unit Share': 'unit_share',
+        'Private Brand': 'private_brand',
+        'Mapping Issue': 'mapping_issue',
+        'Combine Flag': 'combine_flag',
+        'Exclude Flag': 'exclude_flag',
+        'Max of Exclude_Flag': 'original_exclude_flag',
+        'comment': 'reason_issue_type' # Mapping comment to reason_issue_type for simplicity or keep both
+    }
     
-    # Summary
+    for _, row in pivot_result.iterrows():
+        r_dict = {}
+        for k, v in col_map.items():
+            if k in row:
+                val = row[k]
+                if pd.isna(val) or val == "":
+                    if v == 'combine_flag':
+                        r_dict[v] = None
+                    elif v in ['brand', 'reason_issue_type']:
+                        r_dict[v] = ""
+                    else:
+                        r_dict[v] = 0
+                else:
+                    try:
+                        if v == 'combine_flag':
+                            r_dict[v] = int(float(val))
+                        elif v in ['sum_sales', 'sum_spend', 'sum_units', 'sales_share', 'spend_share', 'unit_share']:
+                            r_dict[v] = float(val)
+                        elif v in ['private_brand', 'mapping_issue', 'exclude_flag']:
+                            r_dict[v] = int(float(val))
+                        else:
+                            r_dict[v] = str(val)
+                    except (ValueError, TypeError):
+                        r_dict[v] = 0 if v != 'combine_flag' else None
+            else:
+                r_dict[v] = 0
+        rows.append(r_dict)
+
+    # 5. Detailed Summary (Part 1, 2, 3)
+    res_df = pivot_result
+    total_sales = float(res_df['Sum of O_SALE'].sum())
+    total_spends = float(res_df['Sum of TOTAL_SPEND'].sum())
+    total_units = float(res_df['Sum of O_UNIT'].sum())
+
+    def get_bucket(df, label):
+        s = float(df['Sum of O_SALE'].sum()) if not df.empty else 0.0
+        sp = float(df['Sum of TOTAL_SPEND'].sum()) if not df.empty else 0.0
+        u = float(df['Sum of O_UNIT'].sum()) if not df.empty else 0.0
+        return {
+            "type": label,
+            "sales": s,
+            "spends": sp,
+            "units": u,
+            "sales_pct": (s / total_sales * 100) if total_sales > 0 else 0,
+            "spends_pct": (sp / total_spends * 100) if total_spends > 0 else 0,
+            "units_pct": (u / total_units * 100) if total_units > 0 else 0
+        }
+
+    # Part 2: Before Analysis (based on original Max of Exclude_Flag)
+    part2 = [
+        get_bucket(res_df[res_df['Max of Exclude_Flag'] == 0], "Included"),
+        get_bucket(res_df[res_df['Max of Exclude_Flag'] == 1], "Excluded")
+    ]
+
+    # Part 3: After Exclude Flag Analysis
+    # We follow the buckets from the user's screenshot + refined requests
+    part3 = [
+        get_bucket(res_df[res_df['Exclude Flag'] == 0], "Included"),
+        get_bucket(res_df[res_df['Exclude Flag'] == 1], "Excluded"),
+        get_bucket(res_df[res_df['Private Brand'] == 1], "Private Brand"),
+        get_bucket(res_df[res_df['Mapping Issue'] == 1], "Mapping Issue"),
+        get_bucket(res_df[(res_df['Exclude Flag'] == 1) & (res_df['Sum of TOTAL_SPEND'] == 0) & (res_df['Sum of O_SALE'] > 0)], "Excluded - Zero Spend With Sales"),
+        get_bucket(res_df[(res_df['Exclude Flag'] == 1) & (res_df['Sum of O_SALE'] == 0) & (res_df['Sum of TOTAL_SPEND'] > 0)], "Excluded - Zero Sales With Spend"),
+        get_bucket(res_df[(res_df['Exclude Flag'] == 1) & (res_df['Private Brand'] == 0) & (res_df['Mapping Issue'] == 0) & (res_df['Sum of TOTAL_SPEND'] != 0) & (res_df['Sum of O_SALE'] != 0)], "Other Issue")
+    ]
+
     summary = {
-        "combine_flag_count": int(pivot["combine_flag"].notna().sum()),
-        "exclude_flag_count": int((pivot["exclude_flag"] == 1).sum()),
+        "total_sales": total_sales,
+        "total_spends": total_spends,
+        "total_units": total_units,
+        "part2": part2,
+        "part3": part3,
+        "combine_flag_count": int(res_df['Combine Flag'].dropna().nunique()),
+        "exclude_flag_count": int((res_df['Exclude Flag'] == 1).sum()),
         "issue_counts": {
-            "low_share": int((pivot["reason_issue_type"] == "low_share").sum()),
-            "none": int((pivot["reason_issue_type"] == "none").sum())
+            "private_brand": int((res_df['Private Brand'] == 1).sum()),
+            "mapping_issue": int((res_df['Mapping Issue'] == 1).sum()),
+            "low_share": int((res_df['Exclude Flag'] == 1).sum()) - int((res_df['Private Brand'] == 1).sum()) - int((res_df['Mapping Issue'] == 1).sum())
         }
     }
+    summary["issue_counts"]["low_share"] = max(0, summary["issue_counts"]["low_share"])
 
     result = {
         "file_id": str(file_id),
@@ -1253,3 +1303,110 @@ async def get_brand_exclusion_data(file_id: str, db: Session, model_id: Optional
     
     save_analytical_result(db, int(file_id), result_type, result)
     return result
+
+def update_brand_exclusion_result(db: Session, payload: schemas.BrandExclusionUpdateRequest):
+    """
+    Manually update a brand's grouping or exclusion status in the analytical results.
+    """
+    result_type = f"brand_exclusion_{payload.model_id}"
+    existing = db.query(models.AnalyticalResult).filter(
+        models.AnalyticalResult.file_id == payload.file_id,
+        models.AnalyticalResult.result_type == result_type
+    ).first()
+
+    if not existing:
+        return {"status": "error", "message": "Result not found"}
+
+    import json
+    data = json.loads(existing.result_data)
+    rows = data.get("rows", [])
+    
+    target_brand = payload.brand.strip().lower()
+    updated = False
+    for row in rows:
+        row_brand = str(row.get("brand", "")).strip().lower()
+        if row_brand == target_brand:
+            if payload.combine_flag is not None:
+                row["combine_flag"] = int(payload.combine_flag) if payload.combine_flag > 0 else None
+            if payload.exclude_flag is not None:
+                row["exclude_flag"] = int(payload.exclude_flag)
+            if payload.private_brand is not None:
+                row["private_brand"] = int(payload.private_brand)
+            if payload.mapping_issue is not None:
+                row["mapping_issue"] = int(payload.mapping_issue)
+            # If PB or MI changed, auto-set exclude_flag to match (PB=1 or MI=1 → exclude)
+            # Only auto-derive if the caller didn't explicitly set exclude_flag
+            if payload.exclude_flag is None and (payload.private_brand is not None or payload.mapping_issue is not None):
+                pb = row.get("private_brand", 0)
+                mi = row.get("mapping_issue", 0)
+                row["exclude_flag"] = 1 if (pb == 1 or mi == 1) else row.get("exclude_flag", 0)
+            updated = True
+            break
+    
+    if updated:
+        # Re-save the result
+        # Note: Summary percentages are relative to total sales/spends which don't change.
+        # However, mapping issue/private brand counts MIGHT change if we implement that.
+        # For now, we manually refresh the FULL summary on save to be safe.
+        processed_data = calculate_brand_summary_from_rows(data)
+        existing.result_data = json.dumps(processed_data)
+        db.commit()
+        return {"status": "success", "message": "Brand updated", "data": processed_data}
+    
+    return {"status": "error", "message": "Brand not found in result"}
+
+def calculate_brand_summary_from_rows(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Helper to re-calculate Part 1, 2, 3 summary from raw rows blob.
+    """
+    rows = data.get("rows", [])
+    import pandas as pd
+    df = pd.DataFrame(rows)
+    if df.empty: return data
+
+    total_sales = float(df['sum_sales'].sum())
+    total_spends = float(df['sum_spend'].sum())
+    total_units = float(df['sum_units'].sum())
+
+    def get_bucket(label, filter_mask):
+        b_df = df[filter_mask]
+        s = float(b_df['sum_sales'].sum())
+        sp = float(b_df['sum_spend'].sum())
+        u = float(b_df['sum_units'].sum())
+        return {
+            "type": label,
+            "sales": s,
+            "spends": sp,
+            "units": u,
+            "sales_pct": (s / total_sales * 100) if total_sales > 0 else 0,
+            "spends_pct": (sp / total_spends * 100) if total_spends > 0 else 0,
+            "units_pct": (u / total_units * 100) if total_units > 0 else 0
+        }
+
+    data["summary"] = {
+        "total_sales": total_sales,
+        "total_spends": total_spends,
+        "total_units": total_units,
+        "part2": [
+            get_bucket("Included", df['original_exclude_flag'] == 0),
+            get_bucket("Excluded", df['original_exclude_flag'] == 1)
+        ],
+        "part3": [
+            get_bucket("Included", df['exclude_flag'] == 0),
+            get_bucket("Excluded", df['exclude_flag'] == 1),
+            get_bucket("Private Brand", df['private_brand'] == 1),
+            get_bucket("Mapping Issue", df['mapping_issue'] == 1),
+            get_bucket("Excluded - Zero Spend With Sales", (df['exclude_flag'] == 1) & (df['sum_spend'] == 0) & (df['sum_sales'] > 0)),
+            get_bucket("Excluded - Zero Sales With Spend", (df['exclude_flag'] == 1) & (df['sum_sales'] == 0) & (df['sum_spend'] > 0)),
+            get_bucket("Other Issue", (df['exclude_flag'] == 1) & (df['private_brand'] == 0) & (df['mapping_issue'] == 0) & (df['sum_spend'] != 0) & (df['sum_sales'] != 0))
+        ],
+        "combine_flag_count": int(df['combine_flag'].dropna().nunique()),
+        "exclude_flag_count": int((df['exclude_flag'] == 1).sum()),
+        "issue_counts": {
+            "private_brand": int((df['private_brand'] == 1).sum()),
+            "mapping_issue": int((df['mapping_issue'] == 1).sum()),
+            "low_share": int((df['exclude_flag'] == 1).sum()) - int((df['private_brand'] == 1).sum()) - int((df['mapping_issue'] == 1).sum())
+        }
+    }
+    data["summary"]["issue_counts"]["low_share"] = max(0, data["summary"]["issue_counts"]["low_share"])
+    return data

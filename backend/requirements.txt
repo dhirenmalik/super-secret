@@ -11,3 +11,13 @@ email-validator
 google-cloud-bigquery
 passlib[argon2]
 python-jose[cryptography]
+nltk
+fuzzywuzzy
+thefuzz
+python-Levenshtein
+rapidfuzz
+scikit-learn
+openpyxl
+sentence-transformers
+tqdm
+requests

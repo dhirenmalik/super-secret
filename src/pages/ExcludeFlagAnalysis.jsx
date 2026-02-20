@@ -5,15 +5,17 @@ import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 import { fetchExcludeAnalysis, updateRelevance, fetchBrandExclusion } from '../api/eda';
-import { fetchLatestFile, getApiBaseUrl } from '../api/kickoff';
+import { fetchLatestFile, getApiBaseUrl, updateBrandExclusion } from '../api/kickoff';
 import { useAuth } from '../context/AuthContext';
 import BrandExclusionTable from '../components/eda/BrandExclusionTable';
+import SummarySheet from '../components/eda/SummarySheet';
 
 const step = steps.find((s) => s.slug === 'exclude-flag-analysis');
 
 export default function ExcludeFlagAnalysis() {
     const { token } = useAuth();
     const [viewMode, setViewMode] = useState('subcategory'); // 'subcategory' or 'brand'
+    const [currentPhase, setCurrentPhase] = useState(1); // 1: Candidate Selection, 2: Brand Analysis
     const [brands, setBrands] = useState([]);
     const [brandData, setBrandData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -22,6 +24,72 @@ export default function ExcludeFlagAnalysis() {
     const [latestFile, setLatestFile] = useState(null);
     const [models, setModels] = useState([]);
     const [activeModelId, setActiveModelId] = useState(() => localStorage.getItem('active_model_id') || '');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterPB, setFilterPB] = useState('all');
+    const [filterMI, setFilterMI] = useState('all');
+    const [filterStatus, setFilterStatus] = useState('all');
+
+    const filteredBrandData = useMemo(() => {
+        if (!brandData || !brandData.rows) return null;
+
+        const filteredRows = brandData.rows.filter(row => {
+            const matchesSearch = row.brand?.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesPB = filterPB === 'all' || (filterPB === 'yes' ? row.private_brand === 1 : row.private_brand === 0);
+            const matchesMI = filterMI === 'all' || (filterMI === 'yes' ? row.mapping_issue === 1 : row.mapping_issue === 0);
+            const matchesStatus = filterStatus === 'all' || (filterStatus === 'excluded' ? row.exclude_flag === 1 : row.exclude_flag === 0);
+            return matchesSearch && matchesPB && matchesMI && matchesStatus;
+        });
+
+        const getBucket = (rows, label, filterFn) => {
+            const bRows = rows.filter(filterFn);
+            const s = bRows.reduce((acc, r) => acc + (r.sum_sales || 0), 0);
+            const sp = bRows.reduce((acc, r) => acc + (r.sum_spend || 0), 0);
+            const u = bRows.reduce((acc, r) => acc + (r.sum_units || 0), 0);
+            const tS = filteredRows.reduce((acc, r) => acc + (r.sum_sales || 0), 0);
+            const tSp = filteredRows.reduce((acc, r) => acc + (r.sum_spend || 0), 0);
+            const tU = filteredRows.reduce((acc, r) => acc + (r.sum_units || 0), 0);
+            return {
+                type: label,
+                sales: s,
+                spends: sp,
+                units: u,
+                sales_pct: tS > 0 ? (s / tS * 100) : 0,
+                spends_pct: tSp > 0 ? (sp / tSp * 100) : 0,
+                units_pct: tU > 0 ? (u / tU * 100) : 0
+            };
+        };
+
+        const tSales = filteredRows.reduce((acc, r) => acc + (r.sum_sales || 0), 0);
+        const tSpend = filteredRows.reduce((acc, r) => acc + (r.sum_spend || 0), 0);
+        const tUnits = filteredRows.reduce((acc, r) => acc + (r.sum_units || 0), 0);
+
+        const summary = {
+            total_sales: tSales,
+            total_spends: tSpend,
+            total_units: tUnits,
+            part2: [
+                getBucket(filteredRows, "Included", r => (r.original_exclude_flag || 0) === 0),
+                getBucket(filteredRows, "Excluded", r => (r.original_exclude_flag || 0) === 1)
+            ],
+            part3: [
+                getBucket(filteredRows, "Included", r => r.exclude_flag === 0),
+                getBucket(filteredRows, "Excluded", r => r.exclude_flag === 1),
+                getBucket(filteredRows, "Private Brand", r => r.private_brand === 1),
+                getBucket(filteredRows, "Mapping Issue", r => r.mapping_issue === 1),
+                getBucket(filteredRows, "Excluded - Zero Spend With Sales", r => r.exclude_flag === 1 && r.sum_spend === 0 && r.sum_sales > 0),
+                getBucket(filteredRows, "Excluded - Zero Sales With Spend", r => r.exclude_flag === 1 && r.sum_sales === 0 && r.sum_spend > 0),
+                getBucket(filteredRows, "Other Issue", r => r.exclude_flag === 1 && r.private_brand === 0 && r.mapping_issue === 0 && r.sum_spend !== 0 && r.sum_sales !== 0)
+            ],
+            combine_flag_count: filteredRows.filter(r => !!r.combine_flag).length,
+            exclude_flag_count: filteredRows.filter(r => r.exclude_flag === 1).length,
+            issue_counts: {
+                private_brand: filteredRows.filter(r => r.private_brand === 1).length,
+                mapping_issue: filteredRows.filter(r => r.mapping_issue === 1).length
+            }
+        };
+
+        return { ...brandData, rows: filteredRows, summary };
+    }, [brandData, searchTerm, filterPB, filterMI, filterStatus]);
 
     useEffect(() => {
         loadModels();
@@ -55,8 +123,9 @@ export default function ExcludeFlagAnalysis() {
 
             if (viewMode === 'subcategory') {
                 await loadSubcategoryData();
-            } else {
+            } else if (viewMode === 'brand') {
                 await loadBrandData(file?.file_id);
+                setCurrentPhase(2);
             }
             setError(null);
         } catch (err) {
@@ -86,8 +155,41 @@ export default function ExcludeFlagAnalysis() {
 
     const loadBrandData = async (fileId) => {
         if (!fileId) return;
-        const data = await fetchBrandExclusion(fileId, token, activeModelId);
-        setBrandData(data);
+        setLoading(true);
+        try {
+            const data = await fetchBrandExclusion(fileId, token, activeModelId);
+            setBrandData(data);
+            setCurrentPhase(2);
+            setViewMode('brand');
+        } catch (err) {
+            console.error("Failed to fetch brand exclusion:", err);
+            setError("Analysis failed. Please ensure Phase 1 selections are saved.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const runSpecializedAnalysis = () => {
+        loadBrandData(latestFile?.file_id);
+    };
+
+    const handleBrandUpdate = async (payload) => {
+        try {
+            if (!latestFile) return;
+            await updateBrandExclusion({
+                file_id: latestFile.file_id,
+                model_id: activeModelId,
+                ...payload
+            }, token);
+
+            // Re-fetch brand data to ensure summary and table are perfectly in sync
+            // Alternatively, we could do a local update, but the backend re-calculates summary components.
+            const data = await fetchBrandExclusion(latestFile.file_id, token, activeModelId);
+            setBrandData(data);
+        } catch (err) {
+            console.error("Failed to update brand:", err);
+            alert("Failed to update brand grouping/exclusion.");
+        }
     };
 
     const toggleBrand = async (brand) => {
@@ -176,18 +278,25 @@ export default function ExcludeFlagAnalysis() {
                                 </button>
                             </div>
 
-                            <div className="toggle-group p-1 bg-slate-100 rounded-lg flex">
+                            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
                                 <button
-                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'subcategory' ? 'bg-white shadow text-blue-600' : 'text-slate-600 hover:text-slate-900'}`}
-                                    onClick={() => setViewMode('subcategory')}
+                                    className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${currentPhase === 1 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                    onClick={() => {
+                                        setCurrentPhase(1);
+                                        setViewMode('subcategory');
+                                    }}
                                 >
-                                    Subcategory View
+                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${currentPhase === 1 ? 'bg-blue-600 text-white' : 'bg-slate-300 text-white'}`}>1</span>
+                                    Phase 1: Candidates
                                 </button>
+                                <div className="w-4 h-px bg-slate-300 mx-1"></div>
                                 <button
-                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'brand' ? 'bg-white shadow text-blue-600' : 'text-slate-600 hover:text-slate-900'}`}
-                                    onClick={() => setViewMode('brand')}
+                                    className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${currentPhase === 2 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700 opacity-50 cursor-not-allowed'}`}
+                                    onClick={() => brandData && setCurrentPhase(2)}
+                                    disabled={!brandData}
                                 >
-                                    Brand View
+                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${currentPhase === 2 ? 'bg-blue-600 text-white' : 'bg-slate-300 text-white'}`}>2</span>
+                                    Phase 2: Analysis
                                 </button>
                             </div>
                         </>
@@ -269,87 +378,112 @@ export default function ExcludeFlagAnalysis() {
                         </div>
                     )}
                     {/* Summary Stats */}
-                    <div className="dashboard-stats" style={{ marginBottom: '24px' }}>
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="stat-card">
-                                {loading ? (
-                                    <div className="animate-pulse flex items-center space-x-4 w-full">
-                                        <div className="rounded-full bg-slate-200 h-10 w-10"></div>
-                                        <div className="flex-1 space-y-2 py-1">
-                                            <div className="h-4 bg-slate-200 rounded w-1/4"></div>
-                                            <div className="h-6 bg-slate-200 rounded w-1/2"></div>
-                                        </div>
+                    <div className="dashboard-stats mb-6 relative">
+                        {currentPhase === 2 && filteredBrandData?.summary ? (
+                            <>
+                                <div className="stat-card border-l-4 border-l-blue-500 hover:shadow-lg transition-all">
+                                    <div className="stat-icon blue">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
                                     </div>
-                                ) : (
-                                    <>
-                                        <div className={`stat-icon ${i === 1 ? 'blue' : i === 2 ? 'green' : 'red'}`}>
-                                            {i === 1 ? (
-                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /></svg>
-                                            ) : i === 2 ? (
-                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-                                            ) : (
-                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <div className="stat-value">
-                                                {i === 1 ? (viewMode === 'subcategory' ? brands.length : (brandData?.rows?.length || 0)) :
-                                                    i === 2 ? (viewMode === 'subcategory' ? included.length : (brandData?.rows?.filter(r => r.exclude_flag === 0)?.length || 0)) :
-                                                        (viewMode === 'subcategory' ? excluded.length : (brandData?.rows?.filter(r => r.exclude_flag === 1)?.length || 0))}
-                                            </div>
-                                            <div className="stat-label">
-                                                {i === 1 ? (viewMode === 'subcategory' ? 'Total Subcategories' : 'Total Brands') :
-                                                    i === 2 ? 'Included' : 'Excluded'}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="grid-2">
-                        <div className="card">
-                            <div className="card-header">
-                                <div className="card-title">
-                                    <div className="card-title-icon blue">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M9 11l3 3L22 4" />
-                                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                                        </svg>
+                                    <div>
+                                        <div className="stat-value">{filteredBrandData.summary.combine_flag_count}</div>
+                                        <div className="stat-label">Grouped Brands</div>
                                     </div>
-                                    Tasks
+                                    <div className="ml-auto text-[10px] font-bold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">AUTO</div>
                                 </div>
-                            </div>
-                            <TaskList tasks={step.tasks} />
-                        </div>
-
-                        {viewMode === 'brand' && brandData && (
-                            <div className="card">
-                                <div className="card-header">
-                                    <div className="card-title">
-                                        <div className="card-title-icon yellow">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-                                        </div>
-                                        Brand View Summary
+                                <div className="stat-card border-l-4 border-l-red-500 hover:shadow-lg transition-all">
+                                    <div className="stat-icon red">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                                    </div>
+                                    <div>
+                                        <div className="stat-value">{filteredBrandData.summary.exclude_flag_count}</div>
+                                        <div className="stat-label">Excluded Brands</div>
+                                    </div>
+                                    <div className="ml-auto text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">AUTO</div>
+                                </div>
+                                <div className="stat-card border-l-4 border-l-amber-500 hover:shadow-lg transition-all">
+                                    <div className="stat-icon yellow">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                                    </div>
+                                    <div>
+                                        <div className="stat-value">{filteredBrandData.summary.issue_counts.private_brand + filteredBrandData.summary.issue_counts.mapping_issue}</div>
+                                        <div className="stat-label">Critical Issues</div>
+                                    </div>
+                                    <div className="ml-auto flex flex-col gap-1">
+                                        <span className="text-[9px] font-bold text-red-600 px-1 py-0.5 bg-red-50 rounded">PB: {filteredBrandData.summary.issue_counts.private_brand}</span>
+                                        <span className="text-[9px] font-bold text-amber-600 px-1 py-0.5 bg-amber-50 rounded">MI: {filteredBrandData.summary.issue_counts.mapping_issue}</span>
                                     </div>
                                 </div>
-                                <div className="grid-2" style={{ gap: '10px' }}>
-                                    <div className="p-3 bg-slate-50 rounded flex items-center justify-between">
-                                        <span className="text-sm text-slate-600">Combine Flags</span>
-                                        <span className="font-bold text-blue-600 text-lg ml-2">{brandData.summary.combine_flag_count}</span>
+                                <div className="stat-card border-l-4 border-l-slate-700 hover:shadow-lg transition-all bg-slate-900 text-white">
+                                    <div className="stat-icon slate">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
                                     </div>
-                                    <div className="p-3 bg-slate-50 rounded flex items-center justify-between">
-                                        <span className="text-sm text-slate-600">Low Share Issues</span>
-                                        <span className="font-bold text-amber-600 text-lg ml-2">{brandData.summary.issue_counts.low_share}</span>
+                                    <div>
+                                        <div className="stat-value text-white">${(filteredBrandData.summary.total_sales / 1e6).toFixed(1)}M / ${(filteredBrandData.summary.total_spend / 1e3).toFixed(0)}k</div>
+                                        <div className="stat-label text-slate-400">Total Sales / Spend (Filtered)</div>
                                     </div>
                                 </div>
-                            </div>
+                            </>
+                        ) : (
+                            // Phase 1 Stats
+                            <>
+                                <div className="stat-card border-l-4 border-l-slate-400">
+                                    <div className="stat-icon blue">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /></svg>
+                                    </div>
+                                    <div>
+                                        <div className="stat-value">{brands.length}</div>
+                                        <div className="stat-label">Total Subcategories</div>
+                                    </div>
+                                </div>
+                                <div className="stat-card border-l-4 border-l-blue-600">
+                                    <div className="stat-icon green">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                                    </div>
+                                    <div>
+                                        <div className="stat-value">{included.length}</div>
+                                        <div className="stat-label">Included Candidates</div>
+                                    </div>
+                                </div>
+                                <div className="stat-card border-l-4 border-l-slate-300">
+                                    <div className="stat-icon red">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                                    </div>
+                                    <div>
+                                        <div className="stat-value">{excluded.length}</div>
+                                        <div className="stat-label">Excluded Candidates</div>
+                                    </div>
+                                </div>
+                            </>
                         )}
                     </div>
 
+                    {currentPhase === 1 && (
+                        <div className="card bg-blue-50 border-blue-100 flex items-center justify-between p-6 mt-2">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-blue-900 m-0">Ready for Specialized Analysis?</h3>
+                                    <p className="text-sm text-blue-700 m-0">Analyze <strong>{included.length}</strong> selected subcategories using historic brand mapping &amp; NLP logic.</p>
+                                </div>
+                            </div>
+                            <button
+                                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold shadow-md hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2"
+                                onClick={runSpecializedAnalysis}
+                                disabled={loading || included.length === 0}
+                            >
+                                {loading ? 'Running...' : 'Run Analysis'}
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            </button>
+                        </div>
+                    )}
+
                     {/* Analysis Table */}
-                    <div className="card" style={{ marginTop: '20px' }}>
+                    <div className="card mt-4">
                         <div className="card-header flex justify-between items-center">
                             <div className="card-title">
                                 <div className="card-title-icon green">
@@ -366,42 +500,45 @@ export default function ExcludeFlagAnalysis() {
                             )}
                         </div>
 
-                        {viewMode === 'subcategory' ? (
+                        {currentPhase === 1 ? (
                             <div className="table-container">
                                 <table className="table">
                                     <thead>
                                         <tr>
                                             <th onClick={() => handleSort('name')} style={thStyle}>Subcategory <SortIcon column="name" /></th>
                                             <th onClick={() => handleSort('sales')} style={thStyle}>Total Sales <SortIcon column="sales" /></th>
-                                            <th onClick={() => handleSort('avgPrice')} style={thStyle}>Avg Price <SortIcon column="avgPrice" /></th>
                                             <th onClick={() => handleSort('salesShare')} style={thStyle}>Sales % <SortIcon column="salesShare" /></th>
                                             <th onClick={() => handleSort('unitsShare')} style={thStyle}>Units % <SortIcon column="unitsShare" /></th>
                                             <th onClick={() => handleSort('searchSpendShare')} style={thStyle}>Search Spend % <SortIcon column="searchSpendShare" /></th>
-                                            <th onClick={() => handleSort('offDisplaySpendShare')} style={thStyle}>Off-Display % <SortIcon column="offDisplaySpendShare" /></th>
-                                            <th onClick={() => handleSort('onDisplaySpendShare')} style={thStyle}>On-Display % <SortIcon column="onDisplaySpendShare" /></th>
                                             <th onClick={() => handleSort('status')} style={thStyle}>Status <SortIcon column="status" /></th>
-                                            <th>Include</th>
+                                            <th className="text-center">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {sortedBrands.map((brand) => (
-                                            <tr key={brand.id}>
+                                            <tr key={brand.id} className={brand.status === 'excluded' ? 'bg-slate-50/50' : ''}>
                                                 <td style={{ fontWeight: 600 }}>{brand.name}</td>
-                                                <td>${(brand.sales || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                                                <td>${(brand.avgPrice || 0).toFixed(2)}</td>
-                                                <td>{(brand.salesShare || 0).toFixed(2)}%</td>
-                                                <td>{(brand.unitsShare || 0).toFixed(2)}%</td>
-                                                <td>{(brand.searchSpendShare || 0).toFixed(2)}%</td>
-                                                <td>{(brand.offDisplaySpendShare || 0).toFixed(2)}%</td>
-                                                <td>{(brand.onDisplaySpendShare || 0).toFixed(2)}%</td>
+                                                <td className="font-mono text-sm text-slate-600">${(brand.sales || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                                                <td>{(brand.salesShare || 0).toFixed(1)}%</td>
+                                                <td>{(brand.unitsShare || 0).toFixed(1)}%</td>
+                                                <td>{(brand.searchSpendShare || 0).toFixed(1)}%</td>
                                                 <td>
-                                                    <StatusBadge status={brand.status === 'included' ? 'completed' : 'blocked'} />
+                                                    <span className={`status-badge-mini ${brand.status === 'included' ? 'success' : 'neutral'}`}>
+                                                        {brand.status === 'included' ? 'Selected' : 'Skipped'}
+                                                    </span>
                                                 </td>
-                                                <td>
-                                                    <label className="toggle-switch">
-                                                        <input type="checkbox" checked={brand.status === 'included'} onChange={() => toggleBrand(brand)} />
-                                                        <span className="toggle-slider" />
-                                                    </label>
+                                                <td className="text-center">
+                                                    <button
+                                                        onClick={() => toggleBrand(brand)}
+                                                        className={`p-2 rounded-full transition-all ${brand.status === 'included' ? 'text-red-500 hover:bg-red-50' : 'text-blue-500 hover:bg-blue-50'}`}
+                                                        title={brand.status === 'included' ? 'Exclude from Analysis' : 'Include in Analysis'}
+                                                    >
+                                                        {brand.status === 'included' ? (
+                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                                                        ) : (
+                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 8 12 12 16 14" /><path d="M12 2a10 10 0 1 0 10 10" /></svg>
+                                                        )}
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -409,11 +546,73 @@ export default function ExcludeFlagAnalysis() {
                                 </table>
                             </div>
                         ) : (
-                            <BrandExclusionTable data={brandData} />
+                            <div className="animate-in slide-in-from-bottom duration-500 p-0">
+                                <SummarySheet summary={filteredBrandData?.summary} />
+
+                                {/* Filter Bar */}
+                                <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 border-b border-slate-200">
+                                    <div className="relative" style={{ minWidth: 220 }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Search brands..."
+                                            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                        <svg className="absolute left-2.5 top-2 text-slate-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                        </svg>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-semibold text-slate-400">PB</span>
+                                        <select
+                                            className="text-xs bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            value={filterPB}
+                                            onChange={(e) => setFilterPB(e.target.value)}
+                                        >
+                                            <option value="all">All PB</option>
+                                            <option value="yes">Private Only</option>
+                                            <option value="no">Non-Private</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-semibold text-slate-400">MI</span>
+                                        <select
+                                            className="text-xs bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            value={filterMI}
+                                            onChange={(e) => setFilterMI(e.target.value)}
+                                        >
+                                            <option value="all">All MI</option>
+                                            <option value="yes">Issues Only</option>
+                                            <option value="no">No Issues</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-semibold text-slate-400">Status</span>
+                                        <select
+                                            className="text-xs bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            value={filterStatus}
+                                            onChange={(e) => setFilterStatus(e.target.value)}
+                                        >
+                                            <option value="all">All Status</option>
+                                            <option value="excluded">Excluded Only</option>
+                                            <option value="included">Included Only</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="ml-auto text-[11px] font-semibold text-slate-400">
+                                        Showing <strong className="text-slate-600">{filteredBrandData?.rows?.length || 0}</strong> brands
+                                    </div>
+                                </div>
+                                <BrandExclusionTable data={filteredBrandData} onUpdate={handleBrandUpdate} />
+                            </div>
                         )}
                     </div>
 
-                    <div style={{ marginTop: '20px' }}>
+                    <div className="mt-4">
                         <AutomationNote notes={step.automationNotes} />
                     </div>
                 </div>

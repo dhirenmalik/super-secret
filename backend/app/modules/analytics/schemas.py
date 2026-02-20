@@ -7,6 +7,15 @@ class RelevanceUpdateRequest(BaseModel):
     relevant: bool
     model_id: Optional[int] = None
 
+class BrandExclusionUpdateRequest(BaseModel):
+    file_id: int
+    model_id: int
+    brand: str
+    combine_flag: Optional[int] = None
+    exclude_flag: Optional[int] = None
+    private_brand: Optional[int] = None
+    mapping_issue: Optional[int] = None
+
 # Stack Schemas
 class StackBase(BaseModel):
     stack_name: Optional[str] = None
@@ -193,7 +202,28 @@ class BrandExclusionRow(BaseModel):
     sum_spend: float
     sum_units: float
 
+class SummaryTableBucket(BaseModel):
+    type: str
+    sales: float
+    spends: float
+    units: float
+    sales_pct: float
+    spends_pct: float
+    units_pct: float
+
 class BrandExclusionSummary(BaseModel):
+    # Part 1: Totals
+    total_sales: float
+    total_spends: float
+    total_units: float
+    
+    # Part 2: Before Analysis
+    part2: List[SummaryTableBucket]
+    
+    # Part 3: After Analysis
+    part3: List[SummaryTableBucket]
+    
+    # Existing metrics for compatibility
     combine_flag_count: int
     exclude_flag_count: int
     issue_counts: Dict[str, int]
