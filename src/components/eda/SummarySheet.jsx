@@ -18,15 +18,15 @@ const SummarySheet = ({ summary }) => {
                 <table className="w-full text-xs text-left">
                     <thead className="bg-slate-50/50 text-slate-500 uppercase tracking-tighter font-black border-b border-slate-200">
                         <tr>
-                            <th className="px-4 py-2">Type</th>
-                            <th className="px-4 py-2">Sales</th>
-                            <th className="px-4 py-2">Spends</th>
-                            <th className="px-4 py-2">Units</th>
+                            <th className="px-4 py-2 text-left">Type</th>
+                            <th className="px-4 py-2 text-right">Sales</th>
+                            <th className="px-4 py-2 text-right">Spends</th>
+                            <th className="px-4 py-2 text-right">Units</th>
                             {showPct && (
                                 <>
-                                    <th className="px-4 py-2">Sales %</th>
-                                    <th className="px-4 py-2">Spends %</th>
-                                    <th className="px-4 py-2">Units %</th>
+                                    <th className="px-4 py-2 text-right">Sales %</th>
+                                    <th className="px-4 py-2 text-right">Spends %</th>
+                                    <th className="px-4 py-2 text-right">Units %</th>
                                 </>
                             )}
                         </tr>
@@ -34,15 +34,15 @@ const SummarySheet = ({ summary }) => {
                     <tbody className="divide-y divide-slate-100">
                         {rows.map((row, idx) => (
                             <tr key={idx} className="hover:bg-blue-50/20 transition-colors">
-                                <td className="px-4 py-2 font-semibold text-slate-600">{row.type}</td>
-                                <td className="px-4 py-2 font-mono">{formatNumber(row.sales)}</td>
-                                <td className="px-4 py-2 font-mono text-slate-500">{formatNumber(row.spends)}</td>
-                                <td className="px-4 py-2 font-mono text-slate-500">{formatNumber(row.units)}</td>
+                                <td className="px-4 py-2 font-semibold text-slate-600 text-left">{row.type}</td>
+                                <td className="px-4 py-2 font-mono text-right">{formatNumber(row.sales)}</td>
+                                <td className="px-4 py-2 font-mono text-slate-500 text-right">{formatNumber(row.spends)}</td>
+                                <td className="px-4 py-2 font-mono text-slate-500 text-right">{formatNumber(row.units)}</td>
                                 {showPct && (
                                     <>
-                                        <td className="px-4 py-2 font-bold text-blue-600">{formatPct(row.sales_pct)}</td>
-                                        <td className="px-4 py-2 text-slate-500">{formatPct(row.spends_pct)}</td>
-                                        <td className="px-4 py-2 text-slate-500">{formatPct(row.units_pct)}</td>
+                                        <td className="px-4 py-2 font-bold text-blue-600 text-right">{formatPct(row.sales_pct)}</td>
+                                        <td className="px-4 py-2 text-slate-500 text-right">{formatPct(row.spends_pct)}</td>
+                                        <td className="px-4 py-2 text-slate-500 text-right">{formatPct(row.units_pct)}</td>
                                     </>
                                 )}
                             </tr>
@@ -67,14 +67,7 @@ const SummarySheet = ({ summary }) => {
             </h2>
 
             {/* Part 1 Removed */}
-
-            {/* Part 2 */}
-            {summary.part2 && (
-                <SummaryTable
-                    title="Part 2: Before Analysis"
-                    rows={summary.part2}
-                />
-            )}
+            {/* Part 2 Removed as per request */}
 
             {/* Part 3 */}
             {summary.part3 && (

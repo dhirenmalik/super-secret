@@ -1133,6 +1133,11 @@ async def get_brand_exclusion_data(file_id: str, db: Session, model_id: Optional
     result_type = f"brand_exclusion_{model_id}"
     persisted = get_persisted_result(db, int(file_id), result_type)
     if persisted:
+        # Check if the summary is missing the new fields (e.g. part2, total_sales)
+        if "part2" not in persisted.get("summary", {}):
+            persisted = calculate_brand_summary_from_rows(persisted)
+            # Re-save the upgraded schema to the database
+            save_analytical_result(db, int(file_id), result_type, persisted)
         return persisted
 
     df = load_data(file_id)

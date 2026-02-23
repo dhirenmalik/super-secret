@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrencyMillions } from '../../utils/formatters';
+import MultiSelect from '../MultiSelect';
+import NumberRangeFilter from '../NumberRangeFilter';
 
-const BrandExclusionTable = ({ data, onUpdate, isReadOnly }) => {
+const BrandExclusionTable = ({ data, onUpdate, isReadOnly, filters, setFilters, filterOptions, isFullScreen }) => {
     const [sortConfig, setSortConfig] = useState({ key: 'sum_sales', direction: 'descending' });
     const [currentPage, setCurrentPage] = useState(1);
     const [editingBrand, setEditingBrand] = useState(null);
@@ -85,8 +87,8 @@ const BrandExclusionTable = ({ data, onUpdate, isReadOnly }) => {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 520 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: isFullScreen ? '100%' : 'auto' }}>
+            <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: isFullScreen ? '100%' : 520, minHeight: 350 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                     <colgroup>
                         <col style={{ width: '155px' }} />{/* Brand */}
@@ -113,6 +115,38 @@ const BrandExclusionTable = ({ data, onUpdate, isReadOnly }) => {
                             <th style={{ ...thBase, textAlign: 'center', cursor: 'default' }}>Result <span style={{ color: '#94a3b8', fontSize: 8, fontWeight: 400 }}>click to toggle</span></th>
                             <th style={{ ...thBase, cursor: 'default' }}>Reason / Match</th>
                         </tr>
+                        {filters && (
+                            <tr>
+                                <th style={{ padding: '0 4px 4px 4px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', verticalAlign: 'top' }}>
+                                    <MultiSelect label="Brand" options={filterOptions?.brands || []} selectedValues={filters.brands} onChange={v => setFilters({ ...filters, brands: v })} />
+                                </th>
+                                <th style={{ padding: '0 4px 4px 4px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', verticalAlign: 'top' }}>
+                                    <NumberRangeFilter label="Sales" value={filters.sales} onChange={v => setFilters({ ...filters, sales: v })} align="left" />
+                                </th>
+                                <th style={{ padding: '0 4px 4px 4px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', verticalAlign: 'top' }}>
+                                    <NumberRangeFilter label="Sales %" value={filters.salesShare} onChange={v => setFilters({ ...filters, salesShare: v })} align="left" />
+                                </th>
+                                <th style={{ padding: '0 4px 4px 4px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', verticalAlign: 'top' }}>
+                                    <NumberRangeFilter label="Spend" value={filters.spend} onChange={v => setFilters({ ...filters, spend: v })} align="right" />
+                                </th>
+                                <th style={{ padding: '0 4px 4px 4px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', verticalAlign: 'top' }}>
+                                    <NumberRangeFilter label="Spend %" value={filters.spendShare} onChange={v => setFilters({ ...filters, spendShare: v })} align="right" />
+                                </th>
+                                <th style={{ padding: '0 4px 4px 4px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', verticalAlign: 'top' }}>
+                                    <MultiSelect label="PB" options={[{ label: 'Yes', value: 1 }, { label: 'No', value: 0 }]} selectedValues={filters.pb} onChange={v => setFilters({ ...filters, pb: v })} align="right" />
+                                </th>
+                                <th style={{ padding: '0 4px 4px 4px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', verticalAlign: 'top' }}>
+                                    <MultiSelect label="MI" options={[{ label: 'Yes', value: 1 }, { label: 'No', value: 0 }]} selectedValues={filters.mi} onChange={v => setFilters({ ...filters, mi: v })} align="right" />
+                                </th>
+                                <th style={{ padding: '0 4px 4px 4px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', verticalAlign: 'top' }}>
+                                    <MultiSelect label="Group" options={filterOptions?.groups || []} selectedValues={filters.groups} onChange={v => setFilters({ ...filters, groups: v })} align="right" />
+                                </th>
+                                <th style={{ padding: '0 4px 4px 4px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', verticalAlign: 'top' }}>
+                                    <MultiSelect label="Status" options={[{ label: 'Excluded', value: 1 }, { label: 'Included', value: 0 }]} selectedValues={filters.status} onChange={v => setFilters({ ...filters, status: v })} align="right" />
+                                </th>
+                                <th style={{ padding: '0 4px 4px 4px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}></th>
+                            </tr>
+                        )}
                     </thead>
                     <tbody>
                         {paginatedRows.length > 0 ? paginatedRows.map((row, i) => {

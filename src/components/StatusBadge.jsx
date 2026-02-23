@@ -6,6 +6,7 @@ export default function StatusBadge({ status = 'not_started' }) {
         blocked: 'Blocked',
         uploaded: 'Uploaded',
         pending: 'Pending Review',
+        in_review: 'In Review',
         approved: 'Approved',
         rejected: 'Rejected',
     };

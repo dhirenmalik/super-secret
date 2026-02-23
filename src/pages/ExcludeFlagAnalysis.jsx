@@ -12,6 +12,7 @@ import SummarySheet from '../components/eda/SummarySheet';
 import { formatCurrencyMillions } from '../utils/formatters';
 import TopExcludedSheet from '../components/eda/TopExcludedSheet';
 import DiscussionBoard from '../components/eda/DiscussionBoard';
+import MultiSelect from '../components/MultiSelect';
 
 export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug = null }) {
     const { token } = useAuth();
@@ -29,10 +30,24 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
     const [models, setModels] = useState([]);
     const [activeModelId, setActiveModelId] = useState(() => localStorage.getItem('active_model_id') || '');
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterPB, setFilterPB] = useState('all');
-    const [filterMI, setFilterMI] = useState('all');
-    const [filterStatus, setFilterStatus] = useState('all');
+
+    // Unified filter state
+    const [filters, setFilters] = useState({
+        brands: [],
+        sales: { min: '', max: '' },
+        salesShare: { min: '', max: '' },
+        spend: { min: '', max: '' },
+        spendShare: { min: '', max: '' },
+        groups: [],
+        pb: [],
+        mi: [],
+        status: []
+    });
+
     const [isActionLoading, setIsActionLoading] = useState(false);
+    const [isFullScreen, setIsFullScreen] = useState(false);
+
+
 
     const isReadOnly = useMemo(() => {
         if (mode === 'reviewer') return true;
@@ -43,11 +58,27 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
         if (!brandData || !brandData.rows) return null;
 
         const filteredRows = brandData.rows.filter(row => {
+            const numMatch = (val, range) => {
+                if (!range || (range.min === '' && range.max === '')) return true;
+                const numVal = Number(val) || 0;
+                const min = range.min !== '' ? Number(range.min) : -Infinity;
+                const max = range.max !== '' ? Number(range.max) : Infinity;
+                return numVal >= min && numVal <= max;
+            };
+
             const matchesSearch = row.brand?.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesPB = filterPB === 'all' || (filterPB === 'yes' ? row.private_brand === 1 : row.private_brand === 0);
-            const matchesMI = filterMI === 'all' || (filterMI === 'yes' ? row.mapping_issue === 1 : row.mapping_issue === 0);
-            const matchesStatus = filterStatus === 'all' || (filterStatus === 'excluded' ? row.exclude_flag === 1 : row.exclude_flag === 0);
-            return matchesSearch && matchesPB && matchesMI && matchesStatus;
+            const matchesBrand = filters.brands.length === 0 || filters.brands.includes(row.brand);
+            const matchesSales = numMatch(row.sum_sales, filters.sales);
+            const matchesSalesShare = numMatch(row.sales_share, filters.salesShare);
+            const matchesSpend = numMatch(row.sum_spend, filters.spend);
+            const matchesSpendShare = numMatch(row.spend_share, filters.spendShare);
+            const matchesGroup = filters.groups.length === 0 || filters.groups.includes(row.combine_flag);
+
+            const matchesPB = filters.pb.length === 0 || filters.pb.includes(row.private_brand);
+            const matchesMI = filters.mi.length === 0 || filters.mi.includes(row.mapping_issue);
+            const matchesStatus = filters.status.length === 0 || filters.status.includes(row.exclude_flag);
+
+            return matchesSearch && matchesBrand && matchesSales && matchesSalesShare && matchesSpend && matchesSpendShare && matchesGroup && matchesPB && matchesMI && matchesStatus;
         });
 
         const getBucket = (rows, label, filterFn) => {
@@ -99,7 +130,34 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
         };
 
         return { ...brandData, rows: filteredRows, summary };
-    }, [brandData, searchTerm, filterPB, filterMI, filterStatus]);
+    }, [brandData, filters, searchTerm]);
+
+    // Generate unique options for multi-selects statically so dropdowns don't lose options
+    const filterOptions = useMemo(() => {
+        if (!brandData || !brandData.rows) return {};
+        const getUnique = (key, formatter = String) => {
+            const allValues = brandData.rows.map(r => r[key]);
+            const uniqueVals = [...new Set(allValues)]
+                .filter(v => v !== null && v !== undefined && v !== '');
+
+            // Sort appropriately (strings vs numbers)
+            if (typeof uniqueVals[0] === 'number') {
+                uniqueVals.sort((a, b) => a - b);
+            } else {
+                uniqueVals.sort((a, b) => String(a).localeCompare(String(b)));
+            }
+            return uniqueVals.map(v => ({ value: v, label: formatter(v) }));
+        };
+
+        return {
+            brands: getUnique('brand', String),
+            sales: getUnique('sum_sales', formatCurrencyMillions),
+            salesShare: getUnique('sales_share', v => `${Number(v).toFixed(1)}%`),
+            spend: getUnique('sum_spend', formatCurrencyMillions),
+            spendShare: getUnique('spend_share', v => `${Number(v).toFixed(1)}%`),
+            groups: getUnique('combine_flag', v => `Group ${v}`)
+        };
+    }, [brandData]);
 
     useEffect(() => {
         loadModels();
@@ -312,25 +370,24 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
                                 </button>
                             </div>
 
-                            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+                            <div className="flex items-center p-1 bg-slate-100/80 backdrop-blur-md rounded-xl shadow-inner border border-slate-200/50">
                                 <button
-                                    className={`px - 4 py - 1.5 rounded - md text - sm font - bold transition - all flex items - center gap - 2 ${currentPhase === 1 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'} `}
+                                    className={`relative px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center gap-2 ${currentPhase === 1 ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
                                     onClick={() => {
                                         setCurrentPhase(1);
                                         setViewMode('subcategory');
                                     }}
                                 >
-                                    <span className={`w - 5 h - 5 rounded - full flex items - center justify - center text - [10px] ${currentPhase === 1 ? 'bg-blue-600 text-white' : 'bg-slate-300 text-white'} `}>1</span>
-                                    Phase 1: Candidates
+                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] transition-colors ${currentPhase === 1 ? 'bg-primary text-white shadow-md shadow-blue-500/20' : 'bg-slate-300 text-slate-600'}`}>1</span>
+                                    Subcategories
                                 </button>
-                                <div className="w-4 h-px bg-slate-300 mx-1"></div>
                                 <button
-                                    className={`px - 4 py - 1.5 rounded - md text - sm font - bold transition - all flex items - center gap - 2 ${currentPhase === 2 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700 opacity-50 cursor-not-allowed'} `}
+                                    className={`relative px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center gap-2 ${currentPhase === 2 ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'} ${!brandData ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     onClick={() => brandData && setCurrentPhase(2)}
                                     disabled={!brandData}
                                 >
-                                    <span className={`w - 5 h - 5 rounded - full flex items - center justify - center text - [10px] ${currentPhase === 2 ? 'bg-blue-600 text-white' : 'bg-slate-300 text-white'} `}>2</span>
-                                    Phase 2: Analysis
+                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] transition-colors ${currentPhase === 2 ? 'bg-primary text-white shadow-md shadow-blue-500/20' : 'bg-slate-300 text-slate-600'}`}>2</span>
+                                    Brands Analysis
                                 </button>
                             </div>
                         </>
@@ -572,7 +629,6 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
                                             <th onClick={() => handleSort('unitsShare')} style={thStyle}>Units % <SortIcon column="unitsShare" /></th>
                                             <th onClick={() => handleSort('searchSpendShare')} style={thStyle}>Search Spend % <SortIcon column="searchSpendShare" /></th>
                                             <th onClick={() => handleSort('status')} style={thStyle}>Status <SortIcon column="status" /></th>
-                                            <th className="text-center">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -584,21 +640,23 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
                                                 <td>{(brand.unitsShare || 0).toFixed(1)}%</td>
                                                 <td>{(brand.searchSpendShare || 0).toFixed(1)}%</td>
                                                 <td>
-                                                    <span className={`status - badge - mini ${brand.status === 'included' ? 'success' : 'neutral'} `}>
-                                                        {brand.status === 'included' ? 'Selected' : 'Skipped'}
-                                                    </span>
-                                                </td>
-                                                <td className="text-center">
                                                     <button
                                                         onClick={() => toggleBrand(brand)}
-                                                        className={`p - 2 rounded - full transition - all ${isReadOnly ? 'opacity-50 cursor-not-allowed' : (brand.status === 'included' ? 'text-red-500 hover:bg-red-50' : 'text-blue-500 hover:bg-blue-50')} `}
-                                                        title={isReadOnly ? 'Locked' : (brand.status === 'included' ? 'Exclude from Analysis' : 'Include in Analysis')}
+                                                        className={`status-badge-mini ${brand.status === 'included' ? 'success hover:bg-green-200' : 'neutral hover:bg-slate-300'} transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 min-w-[80px]`}
+                                                        title={isReadOnly ? 'Locked' : (brand.status === 'included' ? 'Click to Skip' : 'Click to Select')}
                                                         disabled={isReadOnly}
+                                                        style={{ cursor: isReadOnly ? 'not-allowed' : 'pointer', border: 'none' }}
                                                     >
                                                         {brand.status === 'included' ? (
-                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                                                            <>
+                                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                                                Selected
+                                                            </>
                                                         ) : (
-                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 8 12 12 16 14" /><path d="M12 2a10 10 0 1 0 10 10" /></svg>
+                                                            <>
+                                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                                                Skipped
+                                                            </>
                                                         )}
                                                     </button>
                                                 </td>
@@ -608,69 +666,61 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
                                 </table>
                             </div>
                         ) : (
-                            <div className="animate-in slide-in-from-bottom duration-500 p-0">
-                                <SummarySheet summary={filteredBrandData?.summary} />
-                                <TopExcludedSheet data={filteredBrandData} />
+                            <div className={isFullScreen ? "fixed inset-0 z-[100] bg-slate-50 overflow-hidden flex flex-col pt-4" : "animate-in slide-in-from-bottom duration-500 p-0"}>
+                                {!isFullScreen && (
+                                    <>
+                                        <SummarySheet summary={filteredBrandData?.summary} />
+                                        <TopExcludedSheet data={filteredBrandData} />
+                                    </>
+                                )}
 
-                                {/* Filter Bar */}
-                                <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 border-b border-slate-200">
-                                    <div className="relative" style={{ minWidth: 220 }}>
-                                        <input
-                                            type="text"
-                                            placeholder="Search brands..."
-                                            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                        />
-                                        <svg className="absolute left-2.5 top-2 text-slate-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                        </svg>
+                                {/* Top Filter Indicators */}
+                                <div className={`flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200 ${isFullScreen ? 'rounded-t-lg mx-4 border-x border-t shadow-sm' : ''}`}>
+                                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" /></svg>
+                                        Active Filters
                                     </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[11px] font-semibold text-slate-400">PB</span>
-                                        <select
-                                            className="text-xs bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            value={filterPB}
-                                            onChange={(e) => setFilterPB(e.target.value)}
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-[11px] font-medium text-slate-400">
+                                            Showing <strong className="text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded">{filteredBrandData?.rows?.length || 0}</strong> / {brandData?.rows?.length || 0} brands
+                                            {(brandData?.rows?.length || 0) !== (filteredBrandData?.rows?.length || 0) && (
+                                                <button
+                                                    onClick={() => setFilters({
+                                                        brands: [], sales: { min: '', max: '' }, salesShare: { min: '', max: '' },
+                                                        spend: { min: '', max: '' }, spendShare: { min: '', max: '' },
+                                                        groups: [], pb: [], mi: [], status: []
+                                                    })}
+                                                    className="ml-3 text-red-500 hover:text-red-700 font-bold uppercase transition hover:bg-red-50 px-1.5 py-0.5 rounded"
+                                                >
+                                                    Clear All
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="w-px h-4 bg-slate-300 mx-1"></div>
+                                        <button
+                                            onClick={() => setIsFullScreen(!isFullScreen)}
+                                            className="text-slate-500 hover:text-blue-600 p-1 rounded hover:bg-slate-200 transition-colors flex items-center justify-center bg-white border border-slate-200 shadow-sm"
+                                            title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
                                         >
-                                            <option value="all">All PB</option>
-                                            <option value="yes">Private Only</option>
-                                            <option value="no">Non-Private</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[11px] font-semibold text-slate-400">MI</span>
-                                        <select
-                                            className="text-xs bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            value={filterMI}
-                                            onChange={(e) => setFilterMI(e.target.value)}
-                                        >
-                                            <option value="all">All MI</option>
-                                            <option value="yes">Issues Only</option>
-                                            <option value="no">No Issues</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[11px] font-semibold text-slate-400">Status</span>
-                                        <select
-                                            className="text-xs bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            value={filterStatus}
-                                            onChange={(e) => setFilterStatus(e.target.value)}
-                                        >
-                                            <option value="all">All Status</option>
-                                            <option value="excluded">Excluded Only</option>
-                                            <option value="included">Included Only</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="ml-auto text-[11px] font-semibold text-slate-400">
-                                        Showing <strong className="text-slate-600">{filteredBrandData?.rows?.length || 0}</strong> brands
+                                            {isFullScreen ? (
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" /></svg>
+                                            ) : (
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
+                                            )}
+                                        </button>
                                     </div>
                                 </div>
-                                <BrandExclusionTable data={filteredBrandData} onUpdate={handleBrandUpdate} isReadOnly={isReadOnly} />
+                                <div className={isFullScreen ? "flex-1 overflow-hidden bg-white border-x border-b shadow-md rounded-b-lg mx-4 mb-4 flex flex-col" : "flex flex-col"}>
+                                    <BrandExclusionTable
+                                        data={filteredBrandData}
+                                        onUpdate={handleBrandUpdate}
+                                        isReadOnly={isReadOnly}
+                                        filters={filters}
+                                        setFilters={setFilters}
+                                        filterOptions={filterOptions}
+                                        isFullScreen={isFullScreen}
+                                    />
+                                </div>
                             </div>
                         )}
                     </div>

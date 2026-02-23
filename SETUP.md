@@ -76,10 +76,10 @@ Frontend will run on: `http://localhost:5173`
 ### Terminal 1 - Backend
 ```bash
 cd backend
-python3.11 -m venv venv
+python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python3.11 -m uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 ```
 
 ### Terminal 2 - Frontend
