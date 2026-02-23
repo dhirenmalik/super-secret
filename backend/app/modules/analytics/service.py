@@ -1037,8 +1037,20 @@ def update_produce_relevance(db: Session, category: str, relevant: bool, model_i
         AnalyticalResult.result_type.in_(cache_types)
     ).delete(synchronize_session=False)
 
+    from app.modules.governance.models import ModelFile
+    file_obj = db.query(ModelFile).filter(
+        ModelFile.file_category == "exclude_flags_raw",
+        ModelFile.model_id == model_id
+    ).order_by(ModelFile.file_id.desc()).first()
+
+    file_status = "error"
+    if file_obj:
+        if file_obj.status in ["approved", "rejected", "in_review", "uploaded"]:
+            file_obj.status = "uploaded"
+        file_status = file_obj.status
+
     db.commit()
-    return {"category": category, "relevant": relevant, "status": "updated", "cache_cleared": cache_types}
+    return {"category": category, "relevant": relevant, "status": "updated", "cache_cleared": cache_types, "file_status": file_status}
 
 # Mapping delegation
 def get_model_groups_data(file_id: str, db: Session):
@@ -1149,7 +1161,16 @@ async def get_brand_exclusion_data(file_id: str, db: Session, model_id: Optional
         return {
             "file_id": str(file_id),
             "rows": [],
-            "summary": {"combine_flag_count": 0, "exclude_flag_count": 0, "issue_counts": {}},
+            "summary": {
+                "combine_flag_count": 0, 
+                "exclude_flag_count": 0, 
+                "issue_counts": {"private_brand": 0, "mapping_issue": 0, "low_share": 0},
+                "total_sales": 0.0,
+                "total_spends": 0.0,
+                "total_units": 0.0,
+                "part2": [],
+                "part3": []
+            },
             "warnings": ["No relevant subcategories selected in Phase 1."]
         }
 
@@ -1181,7 +1202,16 @@ async def get_brand_exclusion_data(file_id: str, db: Session, model_id: Optional
         return {
             "file_id": str(file_id), 
             "rows": [], 
-            "summary": {"combine_flag_count": 0, "exclude_flag_count": 0, "issue_counts": {"private_brand": 0, "mapping_issue": 0, "low_share": 0}},
+            "summary": {
+                "combine_flag_count": 0, 
+                "exclude_flag_count": 0, 
+                "issue_counts": {"private_brand": 0, "mapping_issue": 0, "low_share": 0},
+                "total_sales": 0.0,
+                "total_spends": 0.0,
+                "total_units": 0.0,
+                "part2": [],
+                "part3": []
+            },
             "warnings": [f"Analysis Error: {str(e)}"]
         }
 
@@ -1189,7 +1219,16 @@ async def get_brand_exclusion_data(file_id: str, db: Session, model_id: Optional
         return {
             "file_id": str(file_id),
             "rows": [],
-            "summary": {"combine_flag_count": 0, "exclude_flag_count": 0, "issue_counts": {}},
+            "summary": {
+                "combine_flag_count": 0, 
+                "exclude_flag_count": 0, 
+                "issue_counts": {"private_brand": 0, "mapping_issue": 0, "low_share": 0},
+                "total_sales": 0.0,
+                "total_spends": 0.0,
+                "total_units": 0.0,
+                "part2": [],
+                "part3": []
+            },
             "warnings": ["No brands found for selected subcategories."]
         }
 
@@ -1350,8 +1389,18 @@ def update_brand_exclusion_result(db: Session, payload: schemas.BrandExclusionUp
         # For now, we manually refresh the FULL summary on save to be safe.
         processed_data = calculate_brand_summary_from_rows(data)
         existing.result_data = json.dumps(processed_data)
+
+        # Revert file status to 'uploaded' if currently reviewed
+        from app.modules.governance.models import ModelFile
+        file_obj = db.query(ModelFile).filter(ModelFile.file_id == payload.file_id).first()
+        file_status = "error"
+        if file_obj:
+            if file_obj.status in ["approved", "rejected", "in_review", "uploaded"]:
+                file_obj.status = "uploaded"
+            file_status = file_obj.status
+
         db.commit()
-        return {"status": "success", "message": "Brand updated", "data": processed_data}
+        return {"status": "success", "message": "Brand updated", "data": processed_data, "file_status": file_status}
     
     return {"status": "error", "message": "Brand not found in result"}
 

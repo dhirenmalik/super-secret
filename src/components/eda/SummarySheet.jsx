@@ -1,10 +1,12 @@
 import React from 'react';
 
+import { formatMillions, formatCurrencyMillions } from '../../utils/formatters';
+
 const SummarySheet = ({ summary }) => {
     if (!summary) return null;
 
-    const formatCurrency = (val) => `$${(val || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-    const formatNumber = (val) => (val || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const formatCurrency = (val) => formatCurrencyMillions(val);
+    const formatNumber = (val) => formatMillions(val);
     const formatPct = (val) => `${(val || 0).toFixed(2)}%`;
 
     const SummaryTable = ({ title, rows, showPct = true, isPart1 = false }) => (
@@ -64,17 +66,7 @@ const SummarySheet = ({ summary }) => {
                 Summary Sheet
             </h2>
 
-            {/* Part 1 */}
-            <SummaryTable
-                title="Part 1: Total Sales, Spends and Units"
-                showPct={false}
-                rows={[{
-                    type: "Total Metrics",
-                    sales: summary.total_sales,
-                    spends: summary.total_spends,
-                    units: summary.total_units
-                }]}
-            />
+            {/* Part 1 Removed */}
 
             {/* Part 2 */}
             {summary.part2 && (

@@ -229,6 +229,27 @@ def exclude_flag_automation_function(df_aggregated, relevant_levels, private_bra
         ((pivot['Sum of TOTAL_SPEND'] <= 0) | (pivot['Sum of O_SALE'] <= 0) | (pivot['Sum of O_UNIT'] <= 0)),
         'Exclude Flag'
     ] = 1
+
+    # Condition C: Negative Values thresholds
+    # Mask for any negative metrics
+    neg_mask = (pivot['Sum of TOTAL_SPEND'] < 0) | (pivot['Sum of O_SALE'] < 0) | (pivot['Sum of O_UNIT'] < 0)
+    # Mask for large negative metrics
+    large_neg_mask = (pivot['Sum of TOTAL_SPEND'] <= -100) | (pivot['Sum of O_SALE'] <= -100) | (pivot['Sum of O_UNIT'] <= -100)
+
+    # 1. Large Negative: Exclude + Mapping Issue
+    pivot.loc[large_neg_mask, 'Exclude Flag'] = 1
+    pivot.loc[large_neg_mask, 'Mapping Issue'] = 1
+    # Add comment, preserving existing comments if any
+    pivot.loc[large_neg_mask, 'comment'] = pivot.loc[large_neg_mask, 'comment'].apply(
+        lambda x: x + " | Large Negative Value (MI)" if x else "Large Negative Value (MI)"
+    )
+
+    # 2. Small Negative (negative, but not large): Exclude only
+    small_neg_mask = neg_mask & ~large_neg_mask
+    pivot.loc[small_neg_mask, 'Exclude Flag'] = 1
+    pivot.loc[small_neg_mask, 'comment'] = pivot.loc[small_neg_mask, 'comment'].apply(
+        lambda x: x + " | Small Negative Value" if x else "Small Negative Value"
+    )
     
     # 7. Final Cleanup
     final_cols = [

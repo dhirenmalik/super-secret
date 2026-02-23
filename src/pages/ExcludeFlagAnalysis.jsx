@@ -5,15 +5,19 @@ import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 import { fetchExcludeAnalysis, updateRelevance, fetchBrandExclusion } from '../api/eda';
-import { fetchLatestFile, getApiBaseUrl, updateBrandExclusion } from '../api/kickoff';
+import { fetchLatestFile, getApiBaseUrl, updateBrandExclusion, updateReportStatus } from '../api/kickoff';
 import { useAuth } from '../context/AuthContext';
 import BrandExclusionTable from '../components/eda/BrandExclusionTable';
 import SummarySheet from '../components/eda/SummarySheet';
+import { formatCurrencyMillions } from '../utils/formatters';
+import TopExcludedSheet from '../components/eda/TopExcludedSheet';
+import DiscussionBoard from '../components/eda/DiscussionBoard';
 
-const step = steps.find((s) => s.slug === 'exclude-flag-analysis');
-
-export default function ExcludeFlagAnalysis() {
+export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug = null }) {
     const { token } = useAuth();
+    const stepSlug = overrideStepSlug || 'exclude-flag-analysis';
+    const step = steps.find((s) => s.slug === stepSlug);
+
     const [viewMode, setViewMode] = useState('subcategory'); // 'subcategory' or 'brand'
     const [currentPhase, setCurrentPhase] = useState(1); // 1: Candidate Selection, 2: Brand Analysis
     const [brands, setBrands] = useState([]);
@@ -28,6 +32,12 @@ export default function ExcludeFlagAnalysis() {
     const [filterPB, setFilterPB] = useState('all');
     const [filterMI, setFilterMI] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [isActionLoading, setIsActionLoading] = useState(false);
+
+    const isReadOnly = useMemo(() => {
+        if (mode === 'reviewer') return true;
+        return false;
+    }, [mode, latestFile]);
 
     const filteredBrandData = useMemo(() => {
         if (!brandData || !brandData.rows) return null;
@@ -157,6 +167,7 @@ export default function ExcludeFlagAnalysis() {
         if (!fileId) return;
         setLoading(true);
         try {
+            console.log("Fetching Brand Exclusion Data with params:", { fileId, tokenSnippet: token ? token.substring(0, 10) + '...' : null, activeModelId });
             const data = await fetchBrandExclusion(fileId, token, activeModelId);
             setBrandData(data);
             setCurrentPhase(2);
@@ -176,11 +187,15 @@ export default function ExcludeFlagAnalysis() {
     const handleBrandUpdate = async (payload) => {
         try {
             if (!latestFile) return;
-            await updateBrandExclusion({
+            const res = await updateBrandExclusion({
                 file_id: latestFile.file_id,
                 model_id: activeModelId,
                 ...payload
             }, token);
+
+            if (res.file_status && latestFile) {
+                setLatestFile(prev => ({ ...prev, status: res.file_status }));
+            }
 
             // Re-fetch brand data to ensure summary and table are perfectly in sync
             // Alternatively, we could do a local update, but the backend re-calculates summary components.
@@ -193,6 +208,8 @@ export default function ExcludeFlagAnalysis() {
     };
 
     const toggleBrand = async (brand) => {
+        if (isReadOnly) return;
+
         const newStatus = brand.status === 'included' ? 'excluded' : 'included';
         const isRelevant = newStatus === 'included';
 
@@ -201,13 +218,30 @@ export default function ExcludeFlagAnalysis() {
         ));
 
         try {
-            await updateRelevance(brand.name, isRelevant, token, activeModelId);
+            const res = await updateRelevance(brand.name, isRelevant, token, activeModelId);
+            if (res.file_status && latestFile) {
+                setLatestFile(prev => ({ ...prev, status: res.file_status }));
+            }
         } catch (err) {
             console.error("Failed to update relevance:", err);
             setBrands(prev => prev.map(b =>
                 b.id === brand.id ? { ...b, status: brand.status } : b
             ));
             alert("Failed to update status. Please try again.");
+        }
+    };
+
+    const handleStatusUpdate = async (newStatus) => {
+        if (!latestFile) return;
+        setIsActionLoading(true);
+        try {
+            await updateReportStatus(latestFile.file_id, newStatus, token);
+            setLatestFile(prev => ({ ...prev, status: newStatus }));
+        } catch (error) {
+            console.error('Failed to update status:', error);
+            alert('Failed to update report status. Please try again.');
+        } finally {
+            setIsActionLoading(false);
         }
     };
 
@@ -280,28 +314,64 @@ export default function ExcludeFlagAnalysis() {
 
                             <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
                                 <button
-                                    className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${currentPhase === 1 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                    className={`px - 4 py - 1.5 rounded - md text - sm font - bold transition - all flex items - center gap - 2 ${currentPhase === 1 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'} `}
                                     onClick={() => {
                                         setCurrentPhase(1);
                                         setViewMode('subcategory');
                                     }}
                                 >
-                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${currentPhase === 1 ? 'bg-blue-600 text-white' : 'bg-slate-300 text-white'}`}>1</span>
+                                    <span className={`w - 5 h - 5 rounded - full flex items - center justify - center text - [10px] ${currentPhase === 1 ? 'bg-blue-600 text-white' : 'bg-slate-300 text-white'} `}>1</span>
                                     Phase 1: Candidates
                                 </button>
                                 <div className="w-4 h-px bg-slate-300 mx-1"></div>
                                 <button
-                                    className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${currentPhase === 2 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700 opacity-50 cursor-not-allowed'}`}
+                                    className={`px - 4 py - 1.5 rounded - md text - sm font - bold transition - all flex items - center gap - 2 ${currentPhase === 2 ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700 opacity-50 cursor-not-allowed'} `}
                                     onClick={() => brandData && setCurrentPhase(2)}
                                     disabled={!brandData}
                                 >
-                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${currentPhase === 2 ? 'bg-blue-600 text-white' : 'bg-slate-300 text-white'}`}>2</span>
+                                    <span className={`w - 5 h - 5 rounded - full flex items - center justify - center text - [10px] ${currentPhase === 2 ? 'bg-blue-600 text-white' : 'bg-slate-300 text-white'} `}>2</span>
                                     Phase 2: Analysis
                                 </button>
                             </div>
                         </>
                     )}
-                    <StatusBadge status={activeModelId ? "in_progress" : "not_started"} />
+
+                    {latestFile && (
+                        <div className="flex items-center gap-3">
+                            <StatusBadge status={latestFile.status || 'uploaded'} />
+
+                            {/* Actions for Modeler */}
+                            {mode === 'modeler' && (!latestFile.status || latestFile.status === 'uploaded' || latestFile.status === 'rejected') && (
+                                <button
+                                    onClick={() => handleStatusUpdate('in_review')}
+                                    disabled={isActionLoading || brands.length === 0}
+                                    className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition"
+                                >
+                                    Submit for Review
+                                </button>
+                            )}
+
+                            {/* Actions for Reviewer */}
+                            {mode === 'reviewer' && (
+                                <div className="flex items-center gap-2 border-l border-slate-200 pl-3 ml-1">
+                                    <button
+                                        onClick={() => handleStatusUpdate('approved')}
+                                        disabled={isActionLoading}
+                                        className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-bold hover:bg-green-700 transition"
+                                    >
+                                        Approve
+                                    </button>
+                                    <button
+                                        onClick={() => handleStatusUpdate('rejected')}
+                                        disabled={isActionLoading}
+                                        className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition"
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </PageHeader>
 
@@ -335,7 +405,7 @@ export default function ExcludeFlagAnalysis() {
                                                 <line x1="12" y1="22.08" x2="12" y2="12"></line>
                                             </svg>
                                         </div>
-                                        <span className={`status-badge success`}>
+                                        <span className={`status - badge success`}>
                                             <span className="status-badge-dot"></span>
                                             READY
                                         </span>
@@ -414,15 +484,6 @@ export default function ExcludeFlagAnalysis() {
                                         <span className="text-[9px] font-bold text-amber-600 px-1 py-0.5 bg-amber-50 rounded">MI: {filteredBrandData.summary.issue_counts.mapping_issue}</span>
                                     </div>
                                 </div>
-                                <div className="stat-card border-l-4 border-l-slate-700 hover:shadow-lg transition-all bg-slate-900 text-white">
-                                    <div className="stat-icon slate">
-                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
-                                    </div>
-                                    <div>
-                                        <div className="stat-value text-white">${(filteredBrandData.summary.total_sales / 1e6).toFixed(1)}M / ${(filteredBrandData.summary.total_spend / 1e3).toFixed(0)}k</div>
-                                        <div className="stat-label text-slate-400">Total Sales / Spend (Filtered)</div>
-                                    </div>
-                                </div>
                             </>
                         ) : (
                             // Phase 1 Stats
@@ -472,11 +533,11 @@ export default function ExcludeFlagAnalysis() {
                                 </div>
                             </div>
                             <button
-                                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold shadow-md hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2"
+                                className={`px-6 py-2.5 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 ${isReadOnly ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 hover:-translate-y-0.5 active:translate-y-0' : 'bg-blue-600 text-white hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0'}`}
                                 onClick={runSpecializedAnalysis}
                                 disabled={loading || included.length === 0}
                             >
-                                {loading ? 'Running...' : 'Run Analysis'}
+                                {loading ? 'Running...' : (isReadOnly ? 'View Analysis' : 'Run Analysis')}
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                             </button>
                         </div>
@@ -518,20 +579,21 @@ export default function ExcludeFlagAnalysis() {
                                         {sortedBrands.map((brand) => (
                                             <tr key={brand.id} className={brand.status === 'excluded' ? 'bg-slate-50/50' : ''}>
                                                 <td style={{ fontWeight: 600 }}>{brand.name}</td>
-                                                <td className="font-mono text-sm text-slate-600">${(brand.sales || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                                                <td className="font-mono text-sm text-slate-600">{formatCurrencyMillions(brand.sales)}</td>
                                                 <td>{(brand.salesShare || 0).toFixed(1)}%</td>
                                                 <td>{(brand.unitsShare || 0).toFixed(1)}%</td>
                                                 <td>{(brand.searchSpendShare || 0).toFixed(1)}%</td>
                                                 <td>
-                                                    <span className={`status-badge-mini ${brand.status === 'included' ? 'success' : 'neutral'}`}>
+                                                    <span className={`status - badge - mini ${brand.status === 'included' ? 'success' : 'neutral'} `}>
                                                         {brand.status === 'included' ? 'Selected' : 'Skipped'}
                                                     </span>
                                                 </td>
                                                 <td className="text-center">
                                                     <button
                                                         onClick={() => toggleBrand(brand)}
-                                                        className={`p-2 rounded-full transition-all ${brand.status === 'included' ? 'text-red-500 hover:bg-red-50' : 'text-blue-500 hover:bg-blue-50'}`}
-                                                        title={brand.status === 'included' ? 'Exclude from Analysis' : 'Include in Analysis'}
+                                                        className={`p - 2 rounded - full transition - all ${isReadOnly ? 'opacity-50 cursor-not-allowed' : (brand.status === 'included' ? 'text-red-500 hover:bg-red-50' : 'text-blue-500 hover:bg-blue-50')} `}
+                                                        title={isReadOnly ? 'Locked' : (brand.status === 'included' ? 'Exclude from Analysis' : 'Include in Analysis')}
+                                                        disabled={isReadOnly}
                                                     >
                                                         {brand.status === 'included' ? (
                                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
@@ -548,6 +610,7 @@ export default function ExcludeFlagAnalysis() {
                         ) : (
                             <div className="animate-in slide-in-from-bottom duration-500 p-0">
                                 <SummarySheet summary={filteredBrandData?.summary} />
+                                <TopExcludedSheet data={filteredBrandData} />
 
                                 {/* Filter Bar */}
                                 <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 border-b border-slate-200">
@@ -607,11 +670,16 @@ export default function ExcludeFlagAnalysis() {
                                         Showing <strong className="text-slate-600">{filteredBrandData?.rows?.length || 0}</strong> brands
                                     </div>
                                 </div>
-                                <BrandExclusionTable data={filteredBrandData} onUpdate={handleBrandUpdate} />
+                                <BrandExclusionTable data={filteredBrandData} onUpdate={handleBrandUpdate} isReadOnly={isReadOnly} />
                             </div>
                         )}
                     </div>
 
+                    {latestFile && (
+                        <div className="mt-8">
+                            <DiscussionBoard fileId={latestFile.file_id} />
+                        </div>
+                    )}
                     <div className="mt-4">
                         <AutomationNote notes={step.automationNotes} />
                     </div>

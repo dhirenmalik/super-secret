@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { formatCurrencyMillions } from '../../utils/formatters';
 
-const BrandExclusionTable = ({ data, onUpdate }) => {
+const BrandExclusionTable = ({ data, onUpdate, isReadOnly }) => {
     const [sortConfig, setSortConfig] = useState({ key: 'sum_sales', direction: 'descending' });
     const [currentPage, setCurrentPage] = useState(1);
     const [editingBrand, setEditingBrand] = useState(null);
@@ -58,7 +59,7 @@ const BrandExclusionTable = ({ data, onUpdate }) => {
         return <span style={{ color: '#2563eb', fontSize: 9, marginLeft: 2 }}>{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>;
     };
 
-    const fmt = (val) => `$${(val || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    const fmt = (val) => formatCurrencyMillions(val);
 
     if (!data || !data.rows) return null;
 
@@ -161,17 +162,17 @@ const BrandExclusionTable = ({ data, onUpdate }) => {
                                     {/* PB — clickable toggle */}
                                     <td style={{ ...td, textAlign: 'center' }}>
                                         <button
-                                            onClick={() => onUpdate({ brand: row.brand, private_brand: row.private_brand === 1 ? 0 : 1 })}
-                                            disabled={isUpdating}
-                                            title={row.private_brand === 1 ? 'Mark as Non-Private' : 'Mark as Private Brand'}
+                                            onClick={() => { if (!isReadOnly) onUpdate({ brand: row.brand, private_brand: row.private_brand === 1 ? 0 : 1 }) }}
+                                            disabled={isUpdating || isReadOnly}
+                                            title={isReadOnly ? 'Locked' : (row.private_brand === 1 ? 'Mark as Non-Private' : 'Mark as Private Brand')}
                                             style={{
                                                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                                 width: 24, height: 24, borderRadius: '50%', border: 'none',
                                                 background: row.private_brand === 1 ? '#fee2e2' : '#f1f5f9',
                                                 color: row.private_brand === 1 ? '#b91c1c' : '#94a3b8',
-                                                fontSize: 8, fontWeight: 800, cursor: isUpdating ? 'wait' : 'pointer',
+                                                fontSize: 8, fontWeight: 800, cursor: isUpdating ? 'wait' : isReadOnly ? 'not-allowed' : 'pointer',
                                                 transition: 'opacity 0.15s',
-                                                opacity: isUpdating ? 0.5 : 1,
+                                                opacity: (isUpdating || isReadOnly) ? 0.5 : 1,
                                             }}
                                         >PB</button>
                                     </td>
@@ -179,17 +180,17 @@ const BrandExclusionTable = ({ data, onUpdate }) => {
                                     {/* MI — clickable toggle */}
                                     <td style={{ ...td, textAlign: 'center' }}>
                                         <button
-                                            onClick={() => onUpdate({ brand: row.brand, mapping_issue: row.mapping_issue === 1 ? 0 : 1 })}
-                                            disabled={isUpdating}
-                                            title={row.mapping_issue === 1 ? 'Mark as No Mapping Issue' : 'Mark as Mapping Issue'}
+                                            onClick={() => { if (!isReadOnly) onUpdate({ brand: row.brand, mapping_issue: row.mapping_issue === 1 ? 0 : 1 }) }}
+                                            disabled={isUpdating || isReadOnly}
+                                            title={isReadOnly ? 'Locked' : (row.mapping_issue === 1 ? 'Mark as No Mapping Issue' : 'Mark as Mapping Issue')}
                                             style={{
                                                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                                 width: 24, height: 24, borderRadius: '50%', border: 'none',
                                                 background: row.mapping_issue === 1 ? '#fef9c3' : '#f1f5f9',
                                                 color: row.mapping_issue === 1 ? '#854d0e' : '#94a3b8',
-                                                fontSize: 8, fontWeight: 800, cursor: isUpdating ? 'wait' : 'pointer',
+                                                fontSize: 8, fontWeight: 800, cursor: isUpdating ? 'wait' : isReadOnly ? 'not-allowed' : 'pointer',
                                                 transition: 'opacity 0.15s',
-                                                opacity: isUpdating ? 0.5 : 1,
+                                                opacity: (isUpdating || isReadOnly) ? 0.5 : 1,
                                             }}
                                         >MI</button>
                                     </td>
@@ -207,8 +208,8 @@ const BrandExclusionTable = ({ data, onUpdate }) => {
                                                 />
                                                 <button
                                                     onClick={() => handleGroupSave(row.brand)}
-                                                    disabled={isUpdating}
-                                                    style={{ background: 'none', border: 'none', cursor: isUpdating ? 'not-allowed' : 'pointer', color: '#16a34a', padding: 2, opacity: isUpdating ? 0.5 : 1, lineHeight: 0 }}
+                                                    disabled={isUpdating || isReadOnly}
+                                                    style={{ background: 'none', border: 'none', cursor: (isUpdating || isReadOnly) ? 'not-allowed' : 'pointer', color: '#16a34a', padding: 2, opacity: (isUpdating || isReadOnly) ? 0.5 : 1, lineHeight: 0 }}
                                                 >
                                                     {isUpdating
                                                         ? <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24"><circle opacity=".25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path opacity=".75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
@@ -232,13 +233,15 @@ const BrandExclusionTable = ({ data, onUpdate }) => {
                                                 ) : (
                                                     <span style={{ color: '#cbd5e1', fontSize: 11 }}>—</span>
                                                 )}
-                                                <button
-                                                    onClick={() => { setEditingBrand(row.brand); setEditGroupValue(row.combine_flag || ''); }}
-                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', padding: 1, lineHeight: 0 }}
-                                                    title="Edit group"
-                                                >
-                                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                                                </button>
+                                                {!isReadOnly && (
+                                                    <button
+                                                        onClick={() => { setEditingBrand(row.brand); setEditGroupValue(row.combine_flag || ''); }}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', padding: 1, lineHeight: 0 }}
+                                                        title="Edit group"
+                                                    >
+                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                    </button>
+                                                )}
                                             </div>
                                         )}
                                     </td>
@@ -246,9 +249,9 @@ const BrandExclusionTable = ({ data, onUpdate }) => {
                                     {/* Result — CLICKABLE BADGE (replaces separate Action column) */}
                                     <td style={{ ...td, textAlign: 'center' }}>
                                         <button
-                                            onClick={() => handleExcludeToggle(row)}
-                                            disabled={isUpdating}
-                                            title={isExcluded ? 'Click to Keep' : 'Click to Exclude'}
+                                            onClick={() => { if (!isReadOnly) handleExcludeToggle(row) }}
+                                            disabled={isUpdating || isReadOnly}
+                                            title={isReadOnly ? 'Locked' : (isExcluded ? 'Click to Keep' : 'Click to Exclude')}
                                             style={{
                                                 padding: '3px 10px',
                                                 borderRadius: 4,
@@ -257,15 +260,14 @@ const BrandExclusionTable = ({ data, onUpdate }) => {
                                                 textTransform: 'uppercase',
                                                 letterSpacing: '0.06em',
                                                 border: 'none',
-                                                cursor: isUpdating ? 'wait' : 'pointer',
-                                                background: isUpdating ? '#f1f5f9' : isExcluded ? '#fee2e2' : '#dcfce7',
-                                                color: isUpdating ? '#94a3b8' : isExcluded ? '#b91c1c' : '#166534',
-                                                transition: 'all 0.15s',
-                                                outline: 'none',
-                                                minWidth: 46,
+                                                background: isExcluded ? '#fee2e2' : '#dcfce3',
+                                                color: isExcluded ? '#b91c1c' : '#166534',
+                                                cursor: isUpdating ? 'wait' : isReadOnly ? 'not-allowed' : 'pointer',
+                                                transition: 'opacity 0.15s',
+                                                opacity: (isUpdating || isReadOnly) ? 0.6 : 1,
                                             }}
                                         >
-                                            {isUpdating ? '…' : isExcluded ? 'EXCL' : 'KEEP'}
+                                            {isExcluded ? 'Exclude' : 'Keep'}
                                         </button>
                                     </td>
 

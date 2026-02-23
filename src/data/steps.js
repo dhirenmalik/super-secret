@@ -120,7 +120,7 @@ const steps = [
         name: 'Exclude Flag Review',
         icon: 'CheckSquare',
         phase: 'EDA',
-        allowedRoles: ['admin', 'modeler'],
+        allowedRoles: ['admin', 'reviewer'],
         tasks: [
             'Confirm brands to be considered, combined or excluded for relevant sales & spends coverage',
         ],

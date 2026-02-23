@@ -99,7 +99,7 @@ function App() {
                         </ProtectedRoute>
                     } />
                     <Route path="step/exclude-flag-review" element={
-                        <ProtectedRoute allowedRoles={['admin', 'modeler']}>
+                        <ProtectedRoute allowedRoles={['admin', 'reviewer']}>
                             <ExcludeFlagReview />
                         </ProtectedRoute>
                     } />

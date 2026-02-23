@@ -9,6 +9,7 @@ import L3AnalysisSheet from './L3AnalysisSheet'
 import CorrelationSheet from './CorrelationSheet'
 import ChartsSheet from './ChartsSheet'
 import ModelGroupSalesSheet from './ModelGroupSalesSheet'
+import DiscussionBoard from '../eda/DiscussionBoard'
 import {
     fetchSubcategorySummary,
     fetchL2Values,
@@ -68,43 +69,9 @@ export default function ReportViewer({
     })
     const autoGroupingPath = 'data/Subcat Output/Subcat_Output.csv'
 
-    const [comments, setComments] = useState([])
-    const [isCommentsLoading, setIsCommentsLoading] = useState(false)
-    const [newComment, setNewComment] = useState('')
-    const [isSubmitting, setIsSubmitting] = useState(false)
-
     const mappingDirty = useMemo(() => {
         return JSON.stringify(groups) !== savedGroupsSnapshot
     }, [groups, savedGroupsSnapshot])
-
-    const loadComments = async (id) => {
-        if (!id) return;
-        setIsCommentsLoading(true)
-        try {
-            const { fetchComments } = await import('../../api/kickoff')
-            const data = await fetchComments(id, token)
-            setComments(data || [])
-        } catch (err) {
-            console.error('Failed to load comments:', err)
-        } finally {
-            setIsCommentsLoading(false)
-        }
-    }
-
-    const handleAddComment = async () => {
-        if (!fileId || !newComment.trim()) return
-        setIsSubmitting(true)
-        try {
-            const { addComment } = await import('../../api/kickoff')
-            await addComment(fileId, newComment, token)
-            setNewComment('')
-            await loadComments(fileId)
-        } catch (err) {
-            console.error('Failed to add comment:', err)
-        } finally {
-            setIsSubmitting(false)
-        }
-    }
 
     useEffect(() => {
         if (!fileId) {
@@ -127,7 +94,6 @@ export default function ReportViewer({
         }
 
         loadMappingData()
-        loadComments(fileId)
     }, [fileId])
 
     useEffect(() => {
@@ -495,17 +461,15 @@ export default function ReportViewer({
                                                     Subcategory research and model group optimization.
                                                 </p>
                                             </div>
-                                            {comments.length > 0 && (
-                                                <button
-                                                    onClick={() => handleSheetChange('discussion')}
-                                                    className="px-3 py-1 bg-amber-50 border border-amber-100 rounded-full flex items-center gap-2 hover:bg-amber-100 transition shadow-sm shadow-amber-100/50"
-                                                >
-                                                    <span className="text-amber-600">💬</span>
-                                                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">
-                                                        {comments.length} Feedback
-                                                    </span>
-                                                </button>
-                                            )}
+                                            <button
+                                                onClick={() => handleSheetChange('discussion')}
+                                                className="px-3 py-1 bg-amber-50 border border-amber-100 rounded-full flex items-center gap-2 hover:bg-amber-100 transition shadow-sm shadow-amber-100/50"
+                                            >
+                                                <span className="text-amber-600">💬</span>
+                                                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">
+                                                    Feedback
+                                                </span>
+                                            </button>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -571,61 +535,7 @@ export default function ReportViewer({
                             )}
 
                             {activeSheet === 'discussion' && (
-                                <div className="card p-8 space-y-8">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-xl font-bold text-slate-900">Review Discussion</h3>
-                                        <div className="text-sm text-slate-500">
-                                            {comments.length} message{comments.length !== 1 ? 's' : ''}
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <textarea
-                                            value={newComment}
-                                            onChange={(e) => setNewComment(e.target.value)}
-                                            placeholder="Add your reply or requested change..."
-                                            className="w-full p-4 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition text-sm bg-slate-50/30 min-h-[120px] resize-none"
-                                        />
-                                        <div className="flex justify-end">
-                                            <button
-                                                onClick={handleAddComment}
-                                                disabled={isSubmitting || !newComment.trim()}
-                                                className="px-6 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition disabled:opacity-50"
-                                            >
-                                                {isSubmitting ? 'Posting...' : 'Post Reply'}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-6 pt-4 border-l-2 border-slate-100 pl-8 ml-4">
-                                        {isCommentsLoading ? (
-                                            <div className="text-center py-12">
-                                                <div className="inline-block w-8 h-8 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin"></div>
-                                            </div>
-                                        ) : comments.length === 0 ? (
-                                            <div className="text-center py-12 text-slate-400 italic text-sm">
-                                                No discussion started yet.
-                                            </div>
-                                        ) : (
-                                            comments.map((comment) => (
-                                                <div key={comment.comment_id} className="relative">
-                                                    <div className="absolute -left-[41px] top-0 w-4 h-4 rounded-full bg-white border-4 border-blue-500 shadow-sm shadow-blue-200"></div>
-                                                    <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-2 hover:border-slate-200 transition">
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-sm font-bold text-slate-900">{comment.user_name}</span>
-                                                            <span className="text-xs text-slate-400">
-                                                                {new Date(comment.created_at).toLocaleString()}
-                                                            </span>
-                                                        </div>
-                                                        <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
-                                                            {comment.comment_text}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
+                                <DiscussionBoard fileId={fileId} />
                             )}
                         </div>
                     </>

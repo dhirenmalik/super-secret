@@ -75,7 +75,7 @@ export default function ActualVsPredictedChart({ height = 400 }) {
                         axisLine={false}
                         tickLine={false}
                         tick={{ fill: '#64748b', fontSize: 11 }}
-                        tickFormatter={(val) => val.toLocaleString()}
+                        tickFormatter={(val) => val.toLocaleString('en-US')}
                     />
                     <Tooltip
                         contentStyle={{

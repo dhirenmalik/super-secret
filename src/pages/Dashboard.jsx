@@ -56,7 +56,7 @@ export default function Dashboard() {
             // Load pending items for reviewers
             if (user && (user.role === 'reviewer' || user.role === 'admin')) {
                 const files = await fetchFiles(true, token);
-                const pending = files.filter(f => f.status === 'pending');
+                const pending = files.filter(f => ['pending', 'in_review', 'approved', 'rejected'].includes(f.status));
                 setPendingItems(pending);
             }
 
@@ -154,42 +154,67 @@ export default function Dashboard() {
                         </div>
                     ) : pendingItems.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {pendingItems.map((item) => (
-                                <NavLink
-                                    key={item.id}
-                                    to={`/step/kickoff-report-review`}
-                                    className="block group"
-                                >
-                                    <div className="card h-full border-l-4 border-l-amber-400 group-hover:shadow-lg transition-all">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="card-title-icon blue">
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                                                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                                                    <polyline points="10 9 9 9 8 9"></polyline>
+                            {pendingItems.map((item) => {
+                                const category = item.category || item.file_category;
+                                const isExcludeFlag = category === 'exclude_flags_raw';
+                                const targetRoute = isExcludeFlag ? '/step/exclude-flag-review' : '/step/kickoff-report-review';
+                                const titlePrefix = isExcludeFlag ? 'Exclude Flag Review' : 'Kickoff Report';
+
+                                let badgeClass = "in-progress";
+                                let badgeText = "Pending Review";
+                                if (item.status === 'approved') {
+                                    badgeClass = "completed";
+                                    badgeText = "Approved";
+                                } else if (item.status === 'rejected') {
+                                    badgeClass = "error border border-red-200";
+                                    badgeText = "Rejected";
+                                }
+
+                                const fileName = item.filename || item.file_name;
+                                const uploadDate = item.upload_date || item.uploaded_at;
+
+                                return (
+                                    <NavLink
+                                        key={item.file_id || item.id}
+                                        to={targetRoute}
+                                        onClick={() => {
+                                            if (item.model_id) {
+                                                localStorage.setItem('active_model_id', item.model_id);
+                                            }
+                                        }}
+                                        className="block group"
+                                    >
+                                        <div className={`card h-full border-l-4 ${item.status === 'approved' ? 'border-l-green-500' : item.status === 'rejected' ? 'border-l-red-500' : 'border-l-amber-400'} group-hover:shadow-lg transition-all`}>
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="card-title-icon blue">
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                                                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                                                        <polyline points="10 9 9 9 8 9"></polyline>
+                                                    </svg>
+                                                </div>
+                                                <span className={`status-badge ${badgeClass}`}>
+                                                    <span className="status-badge-dot"></span>
+                                                    {badgeText}
+                                                </span>
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 mb-1">{titlePrefix} - {fileName}</h3>
+                                            <p className="text-xs text-slate-500 mb-4">
+                                                Uploaded {uploadDate ? new Date(uploadDate).toLocaleDateString() : 'Unknown Date'}
+                                            </p>
+                                            <div className="flex items-center gap-2 text-blue-600 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                                                Start Review
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                                    <polyline points="12 5 19 12 12 19"></polyline>
                                                 </svg>
                                             </div>
-                                            <span className="status-badge in-progress">
-                                                <span className="status-badge-dot"></span>
-                                                Pending Review
-                                            </span>
                                         </div>
-                                        <h3 className="font-bold text-slate-800 mb-1">{item.filename}</h3>
-                                        <p className="text-xs text-slate-500 mb-4">
-                                            Uploaded {new Date(item.upload_date).toLocaleDateString()}
-                                        </p>
-                                        <div className="flex items-center gap-2 text-blue-600 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Start Review
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                                <polyline points="12 5 19 12 12 19"></polyline>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </NavLink>
-                            ))}
+                                    </NavLink>
+                                )
+                            })}
                         </div>
                     ) : (
                         <div className="card py-16 text-center border-dashed">

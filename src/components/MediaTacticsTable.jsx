@@ -38,9 +38,9 @@ export default function MediaTacticsTable() {
                         <tr key={idx}>
                             <td style={{ fontSize: '12px' }}>{row.sbu}</td>
                             <td style={{ fontSize: '11px', fontWeight: '500', color: '#0071dc' }}>{row.tactic}</td>
-                            <td style={{ fontSize: '12px', textAlign: 'right' }}>{row.spend.toLocaleString()}</td>
+                            <td style={{ fontSize: '12px', textAlign: 'right' }}>{row.spend.toLocaleString('en-US')}</td>
                             <td style={{ fontSize: '12px', textAlign: 'right' }}>{row.days}</td>
-                            <td style={{ fontSize: '12px', textAlign: 'right' }}>{row.imp_clk.toLocaleString()}</td>
+                            <td style={{ fontSize: '12px', textAlign: 'right' }}>{row.imp_clk.toLocaleString('en-US')}</td>
                             <td style={{ fontSize: '12px', textAlign: 'right' }}>{row.min}</td>
                         </tr>
                     ))}
