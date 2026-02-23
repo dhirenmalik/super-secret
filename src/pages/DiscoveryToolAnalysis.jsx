@@ -4,6 +4,9 @@ import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 import TimeSeriesChart from '../components/charts/TimeSeriesChart';
 import ComparisonBarChart from '../components/charts/ComparisonBarChart';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { getApiBaseUrl } from '../api/kickoff';
 
 const step = steps.find((s) => s.slug === 'discovery-tool-analysis');
 
@@ -17,6 +20,34 @@ const getSpendColor = (value) => {
 };
 
 export default function DiscoveryToolAnalysis() {
+    const { token } = useAuth();
+    const [models, setModels] = useState([]);
+    const [activeModelId, setActiveModelId] = useState(localStorage.getItem('active_model_id') || '');
+    const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+    useEffect(() => {
+        loadModels();
+    }, []);
+
+    const loadModels = async () => {
+        setIsLoadingModels(true);
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/models`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setModels(data);
+            if (data.length > 0 && !activeModelId) {
+                setActiveModelId(data[0].model_id.toString());
+                localStorage.setItem('active_model_id', data[0].model_id);
+            }
+        } catch (error) {
+            console.error('Error fetching models:', error);
+        } finally {
+            setIsLoadingModels(false);
+        }
+    };
+
     return (
         <div>
             <PageHeader
@@ -42,6 +73,26 @@ export default function DiscoveryToolAnalysis() {
                                 </svg>
                             </div>
                             Discovery Tool Details
+                        </div>
+                    </div>
+                    {/* Model Selector */}
+                    <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-4 bg-slate-50">
+                        <span className="text-sm font-medium text-slate-700">Active Model:</span>
+                        <div className="w-64">
+                            <select
+                                className="w-full px-3 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
+                                value={activeModelId}
+                                onChange={(e) => {
+                                    setActiveModelId(e.target.value);
+                                    localStorage.setItem('active_model_id', e.target.value);
+                                }}
+                                disabled={isLoadingModels}
+                            >
+                                <option value="">-- Select Model --</option>
+                                {models.map(m => (
+                                    <option key={m.model_id} value={m.model_id}>{m.model_name}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
                     <div style={{ padding: '16px' }}>

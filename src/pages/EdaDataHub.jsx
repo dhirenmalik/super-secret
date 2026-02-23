@@ -65,18 +65,28 @@ export default function EdaDataHub() {
     };
 
     const handleFileUpload = async (event, category) => {
-        const file = event.target.files[0];
-        if (!file) return;
+        const filesToUpload = Array.from(event.target.files);
+        if (filesToUpload.length === 0) return;
 
         setUploading(prev => ({ ...prev, [category]: true }));
         try {
-            await uploadCsv(file, category, token, selectedModelId);
+            // Upload all selected files sequentially or in parallel
+            for (const file of filesToUpload) {
+                await uploadCsv(file, category, token, selectedModelId);
+            }
             await loadLatestFile(category);
+
+            // Allow success message if multiple files were uploaded
+            if (filesToUpload.length > 1) {
+                alert(`Successfully uploaded ${filesToUpload.length} files for ${category}.`);
+            }
         } catch (error) {
             console.error(`Upload failed for ${category}:`, error);
             alert(`Upload failed: ${error.message}`);
         } finally {
             setUploading(prev => ({ ...prev, [category]: false }));
+            // Reset the input value so the same file(s) can be selected again if needed
+            event.target.value = '';
         }
     };
 
@@ -179,7 +189,8 @@ export default function EdaDataHub() {
                                                     {files[type.category] ? 'Update' : 'Upload'}
                                                     <input
                                                         type="file"
-                                                        accept=".csv"
+                                                        accept={type.category === 'brand_stacks_raw' ? ".parquet,.csv" : ".csv"}
+                                                        multiple={type.category === 'brand_stacks_raw'}
                                                         onChange={(e) => handleFileUpload(e, type.category)}
                                                         style={{ display: 'none' }}
                                                     />

@@ -72,7 +72,25 @@ def exclude_flag_automation_function(df_aggregated, relevant_levels, private_bra
     Core logic for Exclude Flag Analysis (Phase 2).
     """
     # 1. Filter by relevant levels (Phase 1 selection)
-    df_filtered = df_aggregated[df_aggregated[level].isin(relevant_levels)].copy()
+    if not relevant_levels:
+        return pd.DataFrame()
+        
+    mask = pd.Series(False, index=df_aggregated.index)
+    
+    if 'L2' in df_aggregated.columns:
+        temp_l2 = df_aggregated['L2'].astype(str).str.upper().str.strip()
+        mask = mask | temp_l2.isin([str(x).upper().strip() for x in relevant_levels])
+        
+    if 'L3' in df_aggregated.columns:
+        temp_l3 = df_aggregated['L3'].astype(str).str.upper().str.strip()
+        mask = mask | temp_l3.isin([str(x).upper().strip() for x in relevant_levels])
+        
+    # Fallback to the provided level if L2/L3 are absent
+    if not mask.any() and level in df_aggregated.columns:
+        temp_lvl = df_aggregated[level].astype(str).str.upper().str.strip()
+        mask = temp_lvl.isin([str(x).upper().strip() for x in relevant_levels])
+        
+    df_filtered = df_aggregated[mask].copy()
     if df_filtered.empty:
         return pd.DataFrame()
 

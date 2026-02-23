@@ -158,3 +158,42 @@ async def update_brand_exclusion(
     db: Session = Depends(get_db)
 ):
     return service.update_brand_exclusion_result(db, payload)
+
+from . import stack
+
+@router.post("/files/{file_id}/build-stack", response_model=schemas.StackBuildResponse)
+async def build_stack(
+    file_id: int,
+    payload: schemas.StackBuildRequest,
+    db: Session = Depends(get_db)
+):
+    try:
+        """
+        We pass file_id which belongs to the exclude_flags raw file to the generator.
+        """
+        result = await stack.build_stack_process(db, file_id, stack_type=payload.stack_type)
+        return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/files/{file_id}/build-stack", response_model=schemas.StackBuildResponse)
+async def get_built_stack(
+    file_id: int,
+    stack_type: str = Query("brand"),
+    db: Session = Depends(get_db)
+):
+    try:
+        from .service import get_persisted_result
+        res = get_persisted_result(db, file_id, f"brand_stacks_build_{stack_type}")
+        if not res:
+            raise HTTPException(status_code=404, detail="Stack not built yet.")
+        return res
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+

@@ -30,6 +30,33 @@ class Stack(StackBase):
     class Config:
         from_attributes = True
 
+# Stack Build API
+class StackBuildRequest(BaseModel):
+    stack_type: str = "brand"
+    model_id: Optional[int] = None
+
+class StackMatch(BaseModel):
+    sales_match: bool
+    spends_match: bool
+
+class ValuePair(BaseModel):
+    flag_value: float
+    df_value: float
+
+class StackActuals(BaseModel):
+    sales: ValuePair
+    spends: ValuePair
+
+class StackReasons(BaseModel):
+    sales_reason: str
+    spends_reason: str
+
+class StackBuildResponse(BaseModel):
+    totals_match_flag: StackMatch
+    actual_values: StackActuals
+    reason: StackReasons
+    mismatch_amounts: Dict[str, float]
+
 # EDA / Subcat Schemas
 class SubcatAnalysisBase(BaseModel):
     subcategory: str

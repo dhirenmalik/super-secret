@@ -61,3 +61,43 @@ export const fetchBrandExclusion = async (fileId, token = null, modelId = null) 
     }
     return response.json();
 };
+
+export const buildBrandStack = async (fileId, payload, token = null) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/files/${fileId}/build-stack`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to build stack');
+    }
+    return response.json();
+};
+
+export const fetchBuiltStack = async (fileId, stackType = 'brand', token = null) => {
+    const params = new URLSearchParams();
+    if (stackType) params.append('stack_type', stackType);
+
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/files/${fileId}/build-stack?${params.toString()}`, {
+        headers: headers
+    });
+
+    if (response.status === 404) {
+        return null; // Not built yet
+    }
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to fetch built stack');
+    }
+    return response.json();
+};
+
