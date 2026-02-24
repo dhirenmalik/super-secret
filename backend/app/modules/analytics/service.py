@@ -35,8 +35,8 @@ def calculate_summary(df: pd.DataFrame, group_by: str = "L2") -> pd.DataFrame:
     
     # Define mapping of logical fields to possible CSV column names
     mapping = {
-        "sales": ["Sales", "O_SALE", "Sale", "Total_Sales", "SALES", "O_SALE"],
-        "units": ["Units", "O_UNIT", "Unit", "Total_Units", "UNITS", "O_UNIT"],
+        "sales": ["O_SALE", "O_Sales", "Sales", "Sale", "Total_Sales", "SALES"],
+        "units": ["O_UNIT", "O_Units", "Units", "Unit", "Total_Units", "UNITS"],
         "search_spends": ["M_SEARCH_SPEND", "Search_Spend", "SEARCH_SPEND", "M_SEARCH_SPEND"],
         "onsite_display_spends": [
             "M_ON_DIS_TOTAL_SPEND", "ONDisplay_Spend", "ON_DIS_SPEND",
@@ -531,8 +531,8 @@ def get_l3_analysis_data(db: Session, file_id: str, limit_l2=None, rows=100, sta
     # Class L3AnalysisRow: l2, l3, sales, units, onsite_display_spends, total
     # Use calculate_summary technique for consistency
     mapping = {
-        "sales": ["Sales", "O_SALE"],
-        "units": ["Units", "O_UNIT"],
+        "sales": ["O_SALE", "O_Sales", "Sales", "SALES"],
+        "units": ["O_UNIT", "O_Units", "Units", "UNITS"],
         "onsite_display_spends": ["ONDisplay_Spend", "M_ON_DIS_TOTAL_SPEND"],
         "total": ["Total_Spend", "Total"]
     }
@@ -573,8 +573,14 @@ def get_correlation_data(db: Session, file_id: str):
     
     # Pearson correlation of O_SALE across L2 values
     l2_col = next((c for c in df.columns if c.upper() == 'L2'), None)
-    sale_col = next((c for c in df.columns if c.upper() in ['O_SALE', 'SALES']), None)
     date_col = next((c for c in df.columns if c.lower() in ['week_start_date', 'date', 'week']), None)
+    
+    sale_cands = ['O_SALE', 'O_Sales', 'SALES', 'Sales']
+    sale_col = None
+    for cand in sale_cands:
+        if cand.upper() in [c.upper() for c in df.columns]:
+            sale_col = [c for c in df.columns if c.upper() == cand.upper()][0]
+            break
 
     if not l2_col or not sale_col or not date_col:
         return {"file_id": str(file_id), "l2_values": [], "matrix": []}
@@ -609,8 +615,8 @@ def get_weekly_sales_data(db: Session, file_id: str, metric="sales"):
     
     # Resolve metric column
     metric_map = {
-        "sales": ["Sales", "O_SALE", "Sale", "Total_Sales"],
-        "units": ["Units", "O_UNIT", "Unit", "Total_Units"],
+        "sales": ["O_SALE", "O_Sales", "Sales", "Sale", "Total_Sales", "SALES"],
+        "units": ["O_UNIT", "O_Units", "Units", "Unit", "Total_Units", "UNITS"],
         "search_spends": ["M_SEARCH_SPEND", "Search_Spend", "SEARCH_SPEND"],
         "onsite_spends": ["M_ON_DIS_TOTAL_SPEND", "ONDisplay_Spend", "ON_DIS_SPEND"],
         "offsite_spends": ["M_OFF_DIS_TOTAL_SPEND", "OFFDisplay_Spend", "OFF_DIS_SPEND"],
@@ -682,10 +688,15 @@ def get_model_group_weekly_metrics_data(db: Session, file_id: str, payload: sche
     l2_col = next((c for c in df.columns if c.upper() == 'L2'), None)
     date_col = next((c for c in df.columns if c.lower() in ['week_start_date', 'date', 'week']), None)
     
-    metric_map = {"sales": ["O_SALE", "SALES"], "units": ["O_UNIT", "UNITS"]}
+    metric_map = {"sales": ["O_SALE", "O_Sales", "SALES", "Sales"], "units": ["O_UNIT", "O_Units", "UNITS", "Units"]}
     target_metric_cands = metric_map.get(payload.metric.lower(), ["O_SALE"])
-    sale_col = next((c for c in df.columns if c.upper() in [x.upper() for x in target_metric_cands]), None)
     
+    sale_col = None
+    for cand in target_metric_cands:
+        if cand.upper() in [c.upper() for c in df.columns]:
+            sale_col = [c for c in df.columns if c.upper() == cand.upper()][0]
+            break
+            
     search_col = next((c for c in df.columns if 'SEARCH' in c.upper() and 'SPEND' in c.upper()), None)
     onsite_col = next((c for c in df.columns if 'ON' in c.upper() and 'DIS' in c.upper() and 'SPEND' in c.upper()), None)
     offsite_col = next((c for c in df.columns if 'OFF' in c.upper() and 'DIS' in c.upper() and 'SPEND' in c.upper()), None)
@@ -747,8 +758,17 @@ def get_model_group_weekly_metrics_data(db: Session, file_id: str, payload: sche
             # Let's do a more robust aggregation for YoY
             agg_all = {sale_col: "sum"}
             # Need to find units/sales columns again if they aren't the primary sale_col
-            unit_col = next((c for c in df.columns if c.upper() in ["O_UNIT", "UNITS"]), None)
-            sales_col_real = next((c for c in df.columns if c.upper() in ["O_SALE", "SALES"]), None)
+            unit_col = None
+            for cand in ["O_UNIT", "O_Units", "UNITS", "Units"]:
+                if cand.upper() in [c.upper() for c in df.columns]:
+                    unit_col = [c for c in df.columns if c.upper() == cand.upper()][0]
+                    break
+                    
+            sales_col_real = None
+            for cand in ["O_SALE", "O_Sales", "SALES", "Sales"]:
+                if cand.upper() in [c.upper() for c in df.columns]:
+                    sales_col_real = [c for c in df.columns if c.upper() == cand.upper()][0]
+                    break
             
             yoy_df = df.copy()
             yoy_agg = {sales_col_real: "sum"}
@@ -887,10 +907,10 @@ def get_file_preview_data(file_id: str, rows: int = 5):
 # ==========================================================
 # EDA PRODUCE CATEGORY
 # ==========================================================
-async def get_exclude_analysis_data(db: Session, model_id: Optional[int] = None):
-    print(f"[DEBUG] Fetching exclude analysis for model_id={model_id}")
+async def get_exclude_analysis_data(db: Session, model_id: Optional[int] = None, group_by: str = "L3"):
+    print(f"[DEBUG] Fetching exclude analysis for model_id={model_id}, group_by={group_by}")
     # Try persistence first
-    result_type = f"exclude_analysis_{model_id}"
+    result_type = f"exclude_analysis_{model_id}_{group_by}"
     
     # We need a file_id to link the result to. 
     # Use the latest file's ID if available, otherwise use 0 or a constant for global/default
@@ -926,10 +946,24 @@ async def get_exclude_analysis_data(db: Session, model_id: Optional[int] = None)
         return {"data": []}
 
     # Grouping logic if raw file
-    if 'L3' in df.columns:
+    target_group_col = group_by.upper() if group_by else 'L3'
+    if target_group_col in df.columns or 'L3' in df.columns:
+        # If target group_by column is missing, fallback to L3, then L2
+        if target_group_col not in df.columns:
+             target_group_col = 'L3' if 'L3' in df.columns else ('L2' if 'L2' in df.columns else df.columns[0])
+             
         # Standardize column names to match calculate_summary logic
-        sales_col = next((c for c in ['O_SALE', 'SALES', 'Sales'] if c in df.columns), None)
-        units_col = next((c for c in ['O_UNIT', 'UNITS', 'Units'] if c in df.columns), None)
+        sales_col = None
+        for cand in ['O_SALE', 'O_Sales', 'SALES', 'Sales']:
+            if cand.upper() in [c.upper() for c in df.columns]:
+                sales_col = [c for c in df.columns if c.upper() == cand.upper()][0]
+                break
+                
+        units_col = None
+        for cand in ['O_UNIT', 'O_Units', 'UNITS', 'Units']:
+            if cand.upper() in [c.upper() for c in df.columns]:
+                units_col = [c for c in df.columns if c.upper() == cand.upper()][0]
+                break
         
         agg_dict = {}
         if sales_col: agg_dict[sales_col] = 'sum'
@@ -943,7 +977,7 @@ async def get_exclude_analysis_data(db: Session, model_id: Optional[int] = None)
         if not agg_dict:
             return {"data": []}
             
-        summary_df = df.groupby('L3').agg(agg_dict).reset_index()
+        summary_df = df.groupby(target_group_col).agg(agg_dict).reset_index()
         
         total_sales = summary_df[sales_col].sum() if sales_col else 1
         total_units = summary_df[units_col].sum() if units_col else 1
@@ -951,8 +985,8 @@ async def get_exclude_analysis_data(db: Session, model_id: Optional[int] = None)
         
         # Consistently use 'Category' for the frontend
         if 'Category' not in summary_df.columns:
-            if 'L3' in summary_df.columns:
-                summary_df = summary_df.rename(columns={'L3': 'Category'})
+            if target_group_col in summary_df.columns:
+                summary_df = summary_df.rename(columns={target_group_col: 'Category'})
             elif 'category' in summary_df.columns:
                 summary_df = summary_df.rename(columns={'category': 'Category'})
                 
@@ -1032,7 +1066,11 @@ def update_produce_relevance(db: Session, category: str, relevant: bool, model_i
     
     # Invalidate caches that depend on relevance mappings
     # We clear both exclude_analysis and brand_exclusion for this model
-    cache_types = [f"exclude_analysis_{model_id}", f"brand_exclusion_{model_id}"]
+    # Clear both L2 and L3 caches
+    cache_types = [f"exclude_analysis_{model_id}_L2", f"exclude_analysis_{model_id}_L3", f"exclude_analysis_{model_id}_L1", f"brand_exclusion_{model_id}"]
+    # Legacy caches
+    cache_types.extend([f"exclude_analysis_{model_id}", f"exclude_analysis_{model_id}_l2", f"exclude_analysis_{model_id}_l3"])
+    
     db.query(AnalyticalResult).filter(
         AnalyticalResult.result_type.in_(cache_types)
     ).delete(synchronize_session=False)

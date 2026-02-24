@@ -20,6 +20,7 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
     const step = steps.find((s) => s.slug === stepSlug);
 
     const [viewMode, setViewMode] = useState('subcategory'); // 'subcategory' or 'brand'
+    const [subcategoryLevel, setSubcategoryLevel] = useState('L3'); // 'L2' or 'L3'
     const [currentPhase, setCurrentPhase] = useState(1); // 1: Candidate Selection, 2: Brand Analysis
     const [brands, setBrands] = useState([]);
     const [brandData, setBrandData] = useState(null);
@@ -169,7 +170,7 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
         } else {
             setLoading(false);
         }
-    }, [viewMode, activeModelId]);
+    }, [viewMode, activeModelId, subcategoryLevel]);
 
     const loadModels = async () => {
         try {
@@ -205,7 +206,7 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
     };
 
     const loadSubcategoryData = async () => {
-        const data = await fetchExcludeAnalysis('L3', token, activeModelId);
+        const data = await fetchExcludeAnalysis(subcategoryLevel, token, activeModelId);
         const mappedBrands = data.data.map((item, index) => ({
             id: index,
             name: item.Category,
@@ -346,7 +347,7 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
         <div>
             <PageHeader
                 title={step.name}
-                subtitle="Analyze and flag subcategories (L3) or specific brands for inclusion based on key metrics."
+                subtitle="Analyze and flag subcategories or specific brands for inclusion based on key metrics."
                 breadcrumb={['Dashboard', 'EDA Phase', step.name]}
                 stepNumber={step.id}
                 phase={step.phase}
@@ -378,18 +379,30 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
                                         setViewMode('subcategory');
                                     }}
                                 >
-                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] transition-colors ${currentPhase === 1 ? 'bg-primary text-white shadow-md shadow-blue-500/20' : 'bg-slate-300 text-slate-600'}`}>1</span>
-                                    Subcategories
-                                </button>
-                                <button
-                                    className={`relative px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center gap-2 ${currentPhase === 2 ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'} ${!brandData ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    onClick={() => brandData && setCurrentPhase(2)}
-                                    disabled={!brandData}
-                                >
                                     <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] transition-colors ${currentPhase === 2 ? 'bg-primary text-white shadow-md shadow-blue-500/20' : 'bg-slate-300 text-slate-600'}`}>2</span>
                                     Brands Analysis
                                 </button>
                             </div>
+
+                            {/* Subcategory Level Toggle - Only visible in Phase 1 */}
+                            {currentPhase === 1 && viewMode === 'subcategory' && (
+                                <div className="ml-2 flex items-center p-1 bg-slate-100/80 backdrop-blur-md rounded-xl shadow-inner border border-slate-200/50">
+                                    <button
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${subcategoryLevel === 'L2' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                        onClick={() => setSubcategoryLevel('L2')}
+                                        disabled={loading}
+                                    >
+                                        L2 Level
+                                    </button>
+                                    <button
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${subcategoryLevel === 'L3' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                        onClick={() => setSubcategoryLevel('L3')}
+                                        disabled={loading}
+                                    >
+                                        L3 Level
+                                    </button>
+                                </div>
+                            )}
                         </>
                     )}
 

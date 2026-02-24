@@ -11,10 +11,11 @@ router = APIRouter(tags=["analytics"])
 # EDA Produce Category
 @router.get("/eda/exclude-analysis", response_model=Dict[str, Any])
 async def get_exclude_analysis(
+    group_by: str = Query("L3"),
     model_id: Optional[int] = Query(None),
     db: Session = Depends(get_db)
 ):
-    return await service.get_exclude_analysis_data(db, model_id)
+    return await service.get_exclude_analysis_data(db, model_id, group_by)
 
 @router.post("/eda/relevance")
 async def update_relevance(
