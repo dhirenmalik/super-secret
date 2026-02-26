@@ -1,16 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import TaskList from '../components/TaskList';
 import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 import { motion } from 'framer-motion';
+import { getApiBaseUrl } from '../api/kickoff';
+import { useAuth } from '../context/AuthContext';
 
 const step = steps.find((s) => s.id === 1);
 
 export default function DataStaging() {
+    const { token } = useAuth();
     const [isQueryRunning, setIsQueryRunning] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [models, setModels] = useState([]);
+    const [activeModelId, setActiveModelId] = useState(localStorage.getItem('active_model_id') || '');
+
+    useEffect(() => {
+        loadModels();
+    }, []);
+
+    const loadModels = async () => {
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/models`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setModels(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Error fetching models:', error);
+        }
+    };
+
 
     const handleRunQuery = () => {
         setIsQueryRunning(true);
@@ -39,6 +61,12 @@ export default function DataStaging() {
                     breadcrumb={['Dashboard', 'ETL Phase', step.name]}
                     stepNumber={step.id}
                     phase={step.phase}
+                    activeModelId={activeModelId}
+                    models={models}
+                    onModelSwitch={() => {
+                        setActiveModelId('');
+                        localStorage.removeItem('active_model_id');
+                    }}
                 >
                     <StatusBadge status="not_started" />
                 </PageHeader>

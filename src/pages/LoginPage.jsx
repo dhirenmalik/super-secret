@@ -97,7 +97,7 @@ export default function LoginPage() {
                                     type="email"
                                     required
                                     className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 pl-12 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-200"
-                                    placeholder="admin@enterprise.com"
+                                    placeholder="admin@walmart.com"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     autoComplete="email"
@@ -147,17 +147,17 @@ export default function LoginPage() {
                     <div className="mt-10 pt-8 border-t border-slate-100">
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 text-center">Demo Accounts</h3>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/50 transition-colors cursor-pointer" onClick={() => { setEmail('abhishek@enterprise.com'); setPassword('enterprise123'); }}>
+                            <div className="px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/50 transition-colors cursor-pointer" onClick={() => { setEmail('abhishek@walmart.com'); setPassword('walmart123'); }}>
                                 <div className="font-bold text-slate-700 text-sm">Modeler</div>
-                                <div className="text-slate-500 text-xs mt-0.5">abhishek@enterprise.com</div>
+                                <div className="text-slate-500 text-xs mt-0.5">abhishek@walmart.com</div>
                             </div>
-                            <div className="px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/50 transition-colors cursor-pointer" onClick={() => { setEmail('reviewer@enterprise.com'); setPassword('enterprise123'); }}>
+                            <div className="px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/50 transition-colors cursor-pointer" onClick={() => { setEmail('reviewer@walmart.com'); setPassword('walmart123'); }}>
                                 <div className="font-bold text-slate-700 text-sm">Reviewer</div>
-                                <div className="text-slate-500 text-xs mt-0.5">reviewer@enterprise.com</div>
+                                <div className="text-slate-500 text-xs mt-0.5">reviewer@walmart.com</div>
                             </div>
                         </div>
                         <div className="mt-4 text-[11px] text-center text-slate-400">
-                            Pre-filled password: <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">enterprise123</span>
+                            Pre-filled password: <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">walmart123</span>
                         </div>
                     </div>
                 </motion.div>

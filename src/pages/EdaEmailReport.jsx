@@ -65,6 +65,12 @@ export default function EdaEmailReport() {
                 breadcrumb={['Dashboard', 'EDA Phase', step.name]}
                 stepNumber={step.id}
                 phase={step.phase}
+                activeModelId={activeModelId}
+                models={models}
+                onModelSwitch={() => {
+                    setActiveModelId('');
+                    localStorage.removeItem('active_model_id');
+                }}
             >
                 <StatusBadge status="not_started" />
             </PageHeader>
@@ -99,26 +105,7 @@ export default function EdaEmailReport() {
                             Report Generation
                         </div>
                     </div>
-                    {/* Model Selector */}
-                    <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-4 bg-slate-50">
-                        <span className="text-sm font-medium text-slate-700">Active Model:</span>
-                        <div className="w-64">
-                            <select
-                                className="w-full px-3 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
-                                value={activeModelId}
-                                onChange={(e) => {
-                                    setActiveModelId(e.target.value);
-                                    localStorage.setItem('active_model_id', e.target.value);
-                                }}
-                                disabled={isLoadingModels}
-                            >
-                                <option value="">-- Select Model --</option>
-                                {models.map(m => (
-                                    <option key={m.model_id} value={m.model_id}>{m.model_name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
+
                     <div style={{ textAlign: 'center', padding: '20px 0' }}>
                         <div style={{
                             width: '80px', height: '80px', borderRadius: 'var(--radius-xl)',

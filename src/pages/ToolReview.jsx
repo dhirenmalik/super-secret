@@ -7,6 +7,12 @@ import steps from '../data/steps';
 import { useAuth } from '../context/AuthContext';
 import { getApiBaseUrl } from '../api/kickoff';
 import { motion, AnimatePresence } from 'framer-motion';
+import ChartTab from '../components/discovery/ChartTab';
+import AgentInsights from '../components/discovery/AgentInsights';
+import MediaTacticsTable from '../components/discovery/MediaTacticsTable';
+import { Target, Search, Loader2, Activity, TrendingUp, BarChart2, Layers, Bot, FileText, Filter, RefreshCw } from 'lucide-react';
+
+const Sk = ({ h = "h-4", w = "w-full" }) => <div className={`${h} ${w} bg-slate-200 rounded animate-pulse`}></div>;
 
 const step = steps.find((s) => s.slug === 'tool-review');
 
@@ -21,14 +27,148 @@ const mockTactics = [
 
 export default function ToolReview() {
     const { token } = useAuth();
-    const [tactics, setTactics] = useState(mockTactics);
+    const [tactics, setTactics] = useState([]);
     const [models, setModels] = useState([]);
     const [activeModelId, setActiveModelId] = useState(localStorage.getItem('active_model_id') || '');
     const [isLoadingModels, setIsLoadingModels] = useState(false);
+    const [isLoadingData, setIsLoadingData] = useState(false);
+    const [error, setError] = useState(null);
+
+    // Discovery Data State
+    const [discoveryData, setDiscoveryData] = useState(null);
+    const [isLoadingDiscovery, setIsLoadingDiscovery] = useState(false);
+    const [discoveryError, setDiscoveryError] = useState(null);
+    const [tacticFilter, setTacticFilter] = useState('All');
+    const [severityFilter, setSeverityFilter] = useState('All');
+    const [selectedL2s, setSelectedL2s] = useState([]);
 
     useEffect(() => {
         loadModels();
     }, []);
+
+    useEffect(() => {
+        if (activeModelId) {
+            loadBrandData(activeModelId);
+            loadDiscoveryData(activeModelId);
+        }
+    }, [activeModelId]);
+
+    // Reset L2 selection whenever a new model is loaded
+    useEffect(() => {
+        const l2s = discoveryData?.metadata?.l2_list || [];
+        setSelectedL2s(l2s); // default: all selected
+    }, [discoveryData]);
+
+    const loadDiscoveryData = async (modelId) => {
+        setIsLoadingDiscovery(true);
+        setDiscoveryError(null);
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/eda/discovery/${modelId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                const errBody = await response.text();
+                throw new Error(errBody || "Failed to fetch discovery data");
+            }
+            const data = await response.json();
+            setDiscoveryData(data);
+        } catch (err) {
+            console.error("Discovery error:", err);
+            setDiscoveryError(err.message);
+        } finally {
+            setIsLoadingDiscovery(false);
+        }
+    };
+
+    // Metrics calculation logic (cached from DiscoveryToolAnalysis)
+    const metrics = React.useMemo(() => {
+        if (!discoveryData || !discoveryData.time_series || discoveryData.time_series.length === 0) return null;
+
+        const ts = discoveryData.time_series;
+        const lastIdx = ts.length - 1;
+        const curr = ts[lastIdx];
+        const prev = ts[lastIdx - 1] || curr;
+
+        const computeMetrics = (row) => ({
+            unitOnlinePct: row.Units_Online_Units / (row.Units_Online_Units + row.Units_Offline_Units) * 100,
+            salesOnlinePct: row.Sales_Online_GMV / (row.Sales_Online_GMV + row.Sales_Offline_GMV) * 100,
+            wmcPen: row.WMC_Spends / row.Sales_Online_GMV * 100,
+            price: row.Sales_Online_GMV / row.Units_Online_Units
+        });
+
+        const latest = computeMetrics(curr);
+        const prior = computeMetrics(prev);
+
+        const periods = ts.slice(-3).map(r => ({
+            name: r.Anomaly_Date || r.Date || 'N/A',
+            ...computeMetrics(r)
+        }));
+
+        return {
+            unitOnlinePct: latest.unitOnlinePct,
+            salesOnlinePct: latest.salesOnlinePct,
+            wmcPen: latest.wmcPen,
+            avgPrice: latest.price,
+            periods,
+            yoy: {
+                unitOnline: latest.unitOnlinePct - prior.unitOnlinePct,
+                salesOnline: latest.salesOnlinePct - prior.salesOnlinePct,
+                wmcPen: latest.wmcPen - prior.wmcPen,
+                price: ((latest.price / prior.price) - 1) * 100
+            },
+            mediaTactics: discoveryData.media_tactics || []
+        };
+    }, [discoveryData]);
+
+    // Compute filtered view for chart + anomalies
+    const filteredDiscoveryData = React.useMemo(() => {
+        if (!discoveryData) return null;
+        const l2s = discoveryData.metadata?.l2_list || [];
+        if (!selectedL2s.length || selectedL2s.length === l2s.length) return discoveryData;
+        const filteredAnomalies = (discoveryData.anomalies || []).filter(row => {
+            const rowL2 = row.L2 || row.l2 || '';
+            return selectedL2s.some(l => l.toUpperCase() === String(rowL2).toUpperCase());
+        });
+        return { ...discoveryData, anomalies: filteredAnomalies };
+    }, [discoveryData, selectedL2s]);
+
+    const loadBrandData = async (modelId) => {
+        setIsLoadingData(true);
+        setError(null);
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/analytics/eda/brand-agg/${modelId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch brand data');
+            const data = await response.json();
+
+            if (data.length > 0) {
+                // Extract tactics (columns starting with M_)
+                const sampleRow = data[0];
+                const tacticCols = Object.keys(sampleRow).filter(k => k.startsWith('M_'));
+
+                // Map to UI format
+                const derivedTactics = tacticCols.map((col, idx) => {
+                    const cleanName = col.replace('M_', '').split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
+                    return {
+                        id: idx,
+                        name: cleanName,
+                        key: col,
+                        type: col.includes('SEARCH') ? 'Search' : 'Display',
+                        cappingValue: 100
+                    };
+                });
+                setTactics(derivedTactics);
+            } else {
+                setTactics([]);
+            }
+        } catch (err) {
+            console.error('Error loading brand data:', err);
+            setError(err.message);
+        } finally {
+            setIsLoadingData(false);
+        }
+    };
 
     const loadModels = async () => {
         setIsLoadingModels(true);
@@ -62,15 +202,73 @@ export default function ToolReview() {
         >
             <PageHeader
                 title={step.name}
-                subtitle="Customise tactics — merge, remove, adjust capping, and rectify irregular trends at tactic level."
+                subtitle="Review tactical outputs, adjust peaks, and finalize modeling parameters."
                 breadcrumb={['Dashboard', 'EDA Phase', step.name]}
                 stepNumber={step.id}
                 phase={step.phase}
+                activeModelId={activeModelId}
+                models={models}
+                onModelSwitch={() => setActiveModelId('')}
             >
                 <StatusBadge status="not_started" />
             </PageHeader>
 
-            <div className="px-6 mt-6 space-y-6">
+            <div className="px-6 mt-6 space-y-8">
+                {/* Discovery Analysis Results (Moved from Analysis Page) */}
+                <div className="space-y-6">
+                    {discoveryError ? (
+                        <div className="card p-12 flex flex-col items-center justify-center bg-rose-50 border-rose-200 rounded-2xl border">
+                            <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mb-4 border border-rose-200 shadow-sm">
+                                <Target className="w-6 h-6 text-rose-500" />
+                            </div>
+                            <h3 className="text-lg font-bold text-rose-800 mb-2">Analysis Results Unavailable</h3>
+                            <p className="text-rose-600 text-sm max-w-md text-center">{discoveryError}</p>
+                        </div>
+                    ) : (
+                        <>
+                            <AnimatePresence mode="wait">
+                                {(discoveryData || isLoadingDiscovery) && (
+                                    <motion.div
+                                        key={isLoadingDiscovery ? 'loading' : 'loaded'}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.3 }}
+                                        className="space-y-6"
+                                    >
+                                        {isLoadingDiscovery ? (
+                                            <div className="bg-white rounded-2xl border border-slate-200 p-12 flex flex-col items-center justify-center text-slate-500 shadow-sm">
+                                                <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
+                                                <p className="text-sm font-bold text-slate-600">Loading detailed stack explorer & trends...</p>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <ChartTab
+                                                    chartData={filteredDiscoveryData}
+                                                    activeTacticFilter={tacticFilter}
+                                                    anomaliesTable={filteredDiscoveryData?.anomalies}
+                                                />
+                                                <AgentInsights
+                                                    modelId={activeModelId}
+                                                    insights={discoveryData?.metadata?.agent_insights || null}
+                                                    anomaliesTable={filteredDiscoveryData?.anomalies}
+                                                    isLoading={isLoadingDiscovery}
+                                                    tacticFilter={tacticFilter}
+                                                    setTacticFilter={setTacticFilter}
+                                                    severityFilter={severityFilter}
+                                                    setSeverityFilter={setSeverityFilter}
+                                                    availableTactics={['All', ...new Set(filteredDiscoveryData?.anomalies?.map(a => a.Tactic_Prefix) || [])]}
+                                                    availableSeverities={['All', 'Critical', 'High', 'Medium', 'Low']}
+                                                />
+                                            </>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </>
+                    )}
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Tasks */}
                     <motion.div
@@ -198,7 +396,6 @@ export default function ToolReview() {
                     </div>
                 </motion.div>
 
-                {/* Manual Calculations */}
                 <motion.div
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -209,20 +406,23 @@ export default function ToolReview() {
                         <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shadow-sm border border-rose-100">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <rect x="4" y="2" width="16" height="20" rx="2" />
-                                <line x1="8" y1="6" x2="16" y2="6" />
-                                <line x1="16" y1="14" x2="16" y2="18" />
-                                <line x1="8" y1="10" x2="8" y2="10.01" />
-                                <line x1="12" y1="10" x2="12" y2="10.01" />
-                                <line x1="16" y1="10" x2="16" y2="10.01" />
-                                <line x1="8" y1="14" x2="8" y2="14.01" />
-                                <line x1="12" y1="14" x2="12" y2="14.01" />
-                                <line x1="8" y1="18" x2="8" y2="18.01" />
-                                <line x1="12" y1="18" x2="12" y2="18.01" />
                             </svg>
                         </div>
                         <h3 className="text-lg font-bold text-rose-900 m-0 leading-none tracking-tight">Manual Data Adjustments</h3>
+                        {isLoadingData && <span className="text-xs text-slate-400 animate-pulse ml-auto">Loading stack data...</span>}
                     </div>
                     <div className="p-6 space-y-5 bg-white">
+                        {error && (
+                            <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-sm font-medium">
+                                Error connecting to database stacks: {error}
+                            </div>
+                        )}
+                        {!isLoadingData && tactics.length === 0 && (
+                            <div className="p-8 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-500 font-medium">
+                                No brand stack found for this model in the database.
+                                <br />Please run 'Build Brand Stack' first.
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-widest pl-1">Adjustment Description</label>
                             <textarea

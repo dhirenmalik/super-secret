@@ -22,6 +22,24 @@ export default function KickoffReport() {
     const [selectedFile, setSelectedFile] = useState(null)
     const [error, setError] = useState('')
     const [isUploading, setIsUploading] = useState(false)
+    const [models, setModels] = useState([])
+    const [activeModelId, setActiveModelId] = useState(localStorage.getItem('active_model_id') || '')
+
+    const loadModels = async () => {
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/models`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setModels(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Error fetching models:', error);
+        }
+    };
+
+    useEffect(() => {
+        loadModels();
+    }, []);
 
     const loadReports = async () => {
         setIsReportsLoading(true)
@@ -87,6 +105,12 @@ export default function KickoffReport() {
                 breadcrumb={['Dashboard', 'EDA Phase', step.name]}
                 stepNumber={step.id}
                 phase={step.phase}
+                activeModelId={activeModelId}
+                models={models}
+                onModelSwitch={() => {
+                    setActiveModelId('');
+                    localStorage.removeItem('active_model_id');
+                }}
             >
                 <StatusBadge status="in_progress" />
             </PageHeader>

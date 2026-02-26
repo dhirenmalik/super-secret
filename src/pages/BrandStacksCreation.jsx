@@ -102,27 +102,11 @@ export default function BrandStacksCreation() {
                 breadcrumb={['Dashboard', 'EDA Phase', step.name]}
                 stepNumber={step.id}
                 phase={step.phase}
+                activeModelId={activeModelId}
+                models={models}
+                onModelSwitch={() => setActiveModelId('')}
             >
-                <div className="flex items-center gap-4">
-                    {activeModelId && (
-                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Model:</span>
-                            <span className="text-sm font-semibold text-blue-700">
-                                {models.find(m => String(m.model_id) === String(activeModelId))?.model_name || 'Selected Model'}
-                            </span>
-                            <button
-                                onClick={() => setActiveModelId('')}
-                                className="ml-2 p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 transition-colors"
-                                title="Switch Model"
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M4 4l5 5" />
-                                </svg>
-                            </button>
-                        </div>
-                    )}
-                    <StatusBadge status={buildResult ? 'completed' : 'not_started'} />
-                </div>
+                <StatusBadge status={buildResult ? 'completed' : 'not_started'} />
             </PageHeader>
 
             <div className="px-6 mt-6 space-y-6">

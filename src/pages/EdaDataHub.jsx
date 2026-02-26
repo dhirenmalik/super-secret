@@ -104,50 +104,18 @@ export default function EdaDataHub() {
                 breadcrumb={['Dashboard', 'EDA Phase', step.name]}
                 stepNumber={step.id}
                 phase={step.phase}
+                activeModelId={selectedModelId}
+                models={models}
+                onModelSwitch={() => {
+                    setSelectedModelId('');
+                    localStorage.removeItem('active_model_id');
+                }}
             >
                 <StatusBadge status="in_progress" />
             </PageHeader>
 
             <div className="px-6 pb-12 space-y-6 mt-6">
-                <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.1 }}
-                    className="card shadow-sm hover:shadow-md transition-shadow"
-                >
-                    <div className="card-header border-b border-slate-100 bg-white rounded-t-xl px-6 py-5">
-                        <div className="card-title text-emerald-900 m-0">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mr-3 shadow-sm border border-emerald-100">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                                </svg>
-                            </div>
-                            Select Active Model
-                        </div>
-                    </div>
-                    <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row gap-4 items-center rounded-b-xl shadow-inner">
-                        <div className="w-full md:w-80">
-                            <select
-                                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-semibold text-slate-700 shadow-sm bg-white cursor-pointer transition-all outline-none"
-                                value={selectedModelId}
-                                onChange={(e) => {
-                                    setSelectedModelId(e.target.value);
-                                    localStorage.setItem('active_model_id', e.target.value);
-                                }}
-                                disabled={isLoadingModels}
-                            >
-                                <option value="">-- Select Model --</option>
-                                {models.map(m => (
-                                    <option key={m.model_id} value={m.model_id}>{m.model_name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                            {selectedModelId ? "Currently uploading for the selected model." : "Please select a model to see previously uploaded files."}
-                        </div>
-                    </div>
-                </motion.div>
+
 
                 <motion.div
                     initial={{ opacity: 0, y: 15 }}

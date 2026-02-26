@@ -7,12 +7,17 @@ import PageHeader from '../components/PageHeader';
 import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
-import TimeSeriesChart from '../components/charts/TimeSeriesChart';
-import ComparisonBarChart from '../components/charts/ComparisonBarChart';
 import ModelGallery from '../components/ModelGallery';
-import { CheckCircle, AlertTriangle, ChevronRight, BarChart2, TrendingUp, Target, Activity, Search } from 'lucide-react';
+import MediaTacticsTable from '../components/discovery/MediaTacticsTable';
+import { Target, Search, Loader2, Activity, TrendingUp, BarChart2, Layers, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const step = steps.find((s) => s.slug === 'discovery-tool-analysis');
+
+// Skeleton shimmer cell — used to preserve layout during data loading
+const Sk = ({ w = 'w-20', h = 'h-4' }) => (
+    <div className={`${w} ${h} bg-slate-200 rounded animate-pulse inline-block`} />
+);
 
 // Helper function to get color classes based on value for a premium look
 const getRowHighlightClass = (value) => {
@@ -34,6 +39,191 @@ export default function DiscoveryToolAnalysis() {
     const [activeModelId, setActiveModelId] = useState(localStorage.getItem('active_model_id') || '');
     const [isLoadingModels, setIsLoadingModels] = useState(false);
 
+    // Discovery Tool State
+    const [discoveryData, setDiscoveryData] = useState(null);
+    const [isLoadingDiscovery, setIsLoadingDiscovery] = useState(false);
+    const [discoveryError, setDiscoveryError] = useState(null);
+    const [yoyShowNumbers, setYoyShowNumbers] = useState(false);
+    const [selectedL2s, setSelectedL2s] = useState([]);
+    const navigate = useNavigate();
+
+    // Reset L2 selection whenever a new model is loaded
+    useEffect(() => {
+        const l2s = discoveryData?.metadata?.l2_list || [];
+        setSelectedL2s(l2s); // default: all selected
+    }, [discoveryData]);
+
+    const toggleL2 = (l2) => {
+        setSelectedL2s(prev =>
+            prev.includes(l2) ? prev.filter(x => x !== l2) : [...prev, l2]
+        );
+    };
+
+    const allL2s = discoveryData?.metadata?.l2_list || [];
+
+    const metrics = React.useMemo(() => {
+        if (!discoveryData || !discoveryData.time_series || discoveryData.time_series.length === 0) return null;
+
+        const ts = discoveryData.time_series;
+        const sorted = [...ts].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const firstDate = new Date(sorted[0].date);
+        const lastDate = new Date(sorted[sorted.length - 1].date);
+
+        const formatDate = (d) => d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        const periodStr = `${formatDate(firstDate)} - ${formatDate(lastDate)}`;
+
+        let totalSales = 0;
+        let totalOnlineSales = 0;
+        let totalUnits = 0;
+        let totalOnlineUnits = 0;
+        let totalSpend = 0;
+
+        sorted.forEach(row => {
+            totalSales += Number(row.O_SALE || 0);
+            totalOnlineSales += (Number(row.O_SALE_ONLINE || 0) || Number(row.O_SALE_DOTCOM || 0) + Number(row.O_SALE_OG || 0));
+            totalUnits += Number(row.O_UNIT || 0);
+            totalOnlineUnits += (Number(row.O_UNIT_ONLINE || 0) || Number(row.O_UNIT_DOTCOM || 0) + Number(row.O_UNIT_OG || 0));
+
+            Object.keys(row).forEach(k => {
+                if (k.endsWith('_SPEND')) {
+                    totalSpend += Number(row[k] || 0);
+                }
+            });
+        });
+
+        const wmcPen = totalSales > 0 ? (totalSpend / totalSales) * 100 : 0;
+        const avgPrice = totalUnits > 0 ? (totalSales / totalUnits) : 0;
+        const unitOnlinePct = totalUnits > 0 ? (totalOnlineUnits / totalUnits) * 100 : 0;
+        const salesOnlinePct = totalSales > 0 ? (totalOnlineSales / totalSales) * 100 : 0;
+
+        // Split into 3 periods for the table
+        const chunkSize = Math.ceil(sorted.length / 3);
+        const periods = [];
+
+        // Exact target columns prescribed by the user
+        const TARGET_SPEND_COLS = ["M_SP_AB_SPEND", "M_SP_KWB_SPEND", "M_SBA_SPEND", "M_SV_SPEND", "M_ON_DIS_AT_SPEND", "M_ON_DIS_CT_SPEND", "M_ON_DIS_CATTO_SPEND", "M_ON_DIS_KW_SPEND", "M_ON_DIS_ROS_SPEND", "M_ON_DIS_HPLO_SPEND", "M_ON_DIS_APP_HPLO_SPEND", "M_ON_DIS_HP_SPEND", "M_ON_DIS_HPTO_SPEND", "M_ON_DIS_HPGTO_SPEND", "M_OFF_DIS_FB_SPEND", "M_OFF_DIS_PIN_SPEND", "M_OFF_DIS_WN_WITHOUTCTV_SPEND", "M_OFF_DIS_DSP_CTV_SPEND", "M_INSTORE_TV_WALL_SUM_SPEND"];
+        const TARGET_IMP_COLS = ["M_SP_AB_CLK", "M_SP_KWB_CLK", "M_SBA_CLK", "M_SV_CLK", "M_ON_DIS_AT_IMP", "M_ON_DIS_CT_IMP", "M_ON_DIS_CATTO_IMP", "M_ON_DIS_KW_IMP", "M_ON_DIS_ROS_IMP", "M_ON_DIS_HPLO_IMP", "M_ON_DIS_APP_HPLO_IMP", "M_ON_DIS_HP_IMP", "M_ON_DIS_HPTO_IMP", "M_ON_DIS_HPGTO_IMP", "M_OFF_DIS_FB_IMP", "M_OFF_DIS_PIN_IMP", "M_OFF_DIS_WN_WITHOUTCTV_IMP", "M_OFF_DIS_DSP_CTV_IMP", "M_INSTORE_TV_WALL_SUM_IMP"];
+
+        // Tactic tracking
+        const tacticsMap = {}; // prefix -> { name, spends: [0,0,0], actions: [0,0,0], isCpc: false, spendKey, actionKey }
+
+        TARGET_SPEND_COLS.forEach((spendKey, index) => {
+            const actionKey = TARGET_IMP_COLS[index];
+            const prefix = spendKey.replace('_SPEND', '');
+            const isCpc = actionKey.endsWith('_CLK');
+
+            tacticsMap[prefix] = {
+                name: prefix.replace(/_/g, ' '),
+                spends: [0, 0, 0],
+                actions: [0, 0, 0],
+                isCpc,
+                spendKey,
+                actionKey
+            };
+        });
+
+        let totalSpendPerPeriod = [0, 0, 0];
+
+        for (let i = 0; i < 3; i++) {
+            const chunk = sorted.slice(i * chunkSize, (i + 1) * chunkSize);
+            if (chunk.length === 0) continue;
+
+            const cStart = new Date(chunk[0].date);
+            const cEnd = new Date(chunk[chunk.length - 1].date);
+
+            let cSales = 0, cOnlineSales = 0, cUnits = 0, cOnlineUnits = 0, cSpend = 0;
+            chunk.forEach(row => {
+                cSales += Number(row.O_SALE || 0);
+                cOnlineSales += (Number(row.O_SALE_ONLINE || 0) || Number(row.O_SALE_DOTCOM || 0) + Number(row.O_SALE_OG || 0));
+                cUnits += Number(row.O_UNIT || 0);
+                cOnlineUnits += (Number(row.O_UNIT_ONLINE || 0) || Number(row.O_UNIT_DOTCOM || 0) + Number(row.O_UNIT_OG || 0));
+
+                Object.values(tacticsMap).forEach(tactic => {
+                    const spendVal = Number(row[tactic.spendKey] || 0);
+                    cSpend += spendVal;
+                    tactic.spends[i] += spendVal;
+                    totalSpendPerPeriod[i] += spendVal;
+
+                    tactic.actions[i] += Number(row[tactic.actionKey] || 0);
+                });
+            });
+
+            periods.push({
+                name: `${formatDate(cStart)} - ${formatDate(cEnd)}`,
+                unitOnlinePct: cUnits > 0 ? (cOnlineUnits / cUnits) * 100 : 0,
+                salesOnlinePct: cSales > 0 ? (cOnlineSales / cSales) * 100 : 0,
+                wmcPen: cSales > 0 ? (cSpend / cSales) * 100 : 0,
+                price: cUnits > 0 ? (cSales / cUnits) : 0,
+                rawSales: cSales,
+                rawUnits: cUnits,
+                rawSpend: cSpend
+            });
+        }
+
+        // Calculate Media Tactics Rows
+        const mediaTactics = Object.values(tacticsMap).map(t => {
+            const share1 = totalSpendPerPeriod[0] > 0 ? (t.spends[0] / totalSpendPerPeriod[0]) * 100 : 0;
+            const share2 = totalSpendPerPeriod[1] > 0 ? (t.spends[1] / totalSpendPerPeriod[1]) * 100 : 0;
+            const share3 = totalSpendPerPeriod[2] > 0 ? (t.spends[2] / totalSpendPerPeriod[2]) * 100 : 0;
+
+            const spendYoy = t.spends[1] > 0 ? ((t.spends[2] - t.spends[1]) / t.spends[1]) * 100 : 0;
+
+            // Cost Per Action for latest period (P3)
+            let cpa = 0;
+            if (t.actions[2] > 0) {
+                cpa = t.isCpc ? (t.spends[2] / t.actions[2]) : ((t.spends[2] / t.actions[2]) * 1000);
+            }
+
+            // Cost Per Action for prev period (P2)
+            let prevCpa = 0;
+            if (t.actions[1] > 0) {
+                prevCpa = t.isCpc ? (t.spends[1] / t.actions[1]) : ((t.spends[1] / t.actions[1]) * 1000);
+            }
+
+            const cpaYoy = prevCpa > 0 ? ((cpa - prevCpa) / prevCpa) * 100 : 0;
+
+            return {
+                name: t.name,
+                shares: [share1, share2, share3],
+                spends: [...t.spends],
+                spendYoy,
+                cpa,
+                cpaYoy,
+                isCpc: t.isCpc
+            };
+        }).filter(t => t.shares.some(s => s > 0)); // Only keep tactics that actually have spend
+
+        // Sort by total spend share in latest period descending
+        mediaTactics.sort((a, b) => b.shares[2] - a.shares[2]);
+
+        // YOY Change is Period 3 vs Period 2
+        let yoy = { sales: 0, units: 0, spend: 0, price: 0, wmcPen: 0, unitOnline: 0, salesOnline: 0 };
+        if (periods.length >= 2) {
+            const pLast = periods[periods.length - 1];
+            const pPrev = periods[periods.length - 2];
+
+            const calcChange = (curr, prev) => prev > 0 ? ((curr - prev) / prev) * 100 : 0;
+            yoy.sales = calcChange(pLast.rawSales, pPrev.rawSales);
+            yoy.units = calcChange(pLast.rawUnits, pPrev.rawUnits);
+            yoy.spend = calcChange(pLast.rawSpend, pPrev.rawSpend);
+            yoy.price = calcChange(pLast.price, pPrev.price);
+            yoy.wmcPen = calcChange(pLast.wmcPen, pPrev.wmcPen);
+            yoy.unitOnline = calcChange(pLast.unitOnlinePct, pPrev.unitOnlinePct);
+            yoy.salesOnline = calcChange(pLast.salesOnlinePct, pPrev.salesOnlinePct);
+        }
+
+        return {
+            periodStr,
+            wmcPen,
+            avgPrice,
+            unitOnlinePct,
+            salesOnlinePct,
+            periods,
+            yoy,
+            mediaTactics
+        };
+    }, [discoveryData]);
+
     useEffect(() => {
         loadModels();
     }, []);
@@ -45,7 +235,8 @@ export default function DiscoveryToolAnalysis() {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
-            setModels(data);
+            // Only show models that have a completed brand stack build
+            setModels(Array.isArray(data) ? data.filter(m => m.stack_built === true) : []);
         } catch (error) {
             console.error('Error fetching models:', error);
         } finally {
@@ -53,37 +244,54 @@ export default function DiscoveryToolAnalysis() {
         }
     };
 
+    useEffect(() => {
+        if (activeModelId) {
+            loadDiscoveryData(activeModelId);
+        } else {
+            setDiscoveryData(null);
+        }
+    }, [activeModelId]);
+
+    const loadDiscoveryData = async (modelId) => {
+        setIsLoadingDiscovery(true);
+        setDiscoveryError(null);
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/eda/discovery/${modelId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error("Modeling stack not built yet for this model. Please build the stack in Exclude Flag Analysis first.");
+                }
+                throw new Error("Failed to load discovery data.");
+            }
+            const data = await response.json();
+            setDiscoveryData(data);
+        } catch (error) {
+            console.error('Error fetching discovery data:', error);
+            setDiscoveryError(error.message);
+        } finally {
+            setIsLoadingDiscovery(false);
+        }
+    };
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
             <PageHeader
                 title={step.name}
-                subtitle="Create reports with trends, charts, and comparisons at total and variable level."
+                subtitle="High-level category trends and year-over-year performance overview."
                 breadcrumb={['Dashboard', 'EDA Phase', step.name]}
                 stepNumber={step.id}
                 phase={step.phase}
+                activeModelId={activeModelId}
+                models={models}
+                onModelSwitch={() => setShowGallery(true)}
             >
-                <div className="flex items-center gap-4">
-                    {activeModelId && (
-                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Model:</span>
-                            <span className="text-sm font-semibold text-indigo-700">
-                                {models.find(m => String(m.model_id) === String(activeModelId))?.model_name || 'Selected Model'}
-                            </span>
-                            <button
-                                onClick={() => {
-                                    setActiveModelId('');
-                                    localStorage.removeItem('active_model_id');
-                                }}
-                                className="ml-2 p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-indigo-600 transition-colors"
-                                title="Switch Model"
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M4 4l5 5" />
-                                </svg>
-                            </button>
-                        </div>
-                    )}
-                    <StatusBadge status="not_started" />
+                <div className="flex items-center gap-3">
+                    <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border border-indigo-100 shadow-sm">
+                        EDA Phase
+                    </span>
+                    <StatusBadge status="not-started" />
                 </div>
             </PageHeader>
 
@@ -98,7 +306,7 @@ export default function DiscoveryToolAnalysis() {
                     />
                 ) : (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        <div className="flex flex-col gap-6">
 
                             {/* Card 1: Discovery Tool Details */}
                             <motion.div
@@ -107,14 +315,6 @@ export default function DiscoveryToolAnalysis() {
                                 transition={{ duration: 0.4, delay: 0.1 }}
                                 className="card shadow-sm hover:shadow-md transition-shadow"
                             >
-                                <div className="card-header border-b border-slate-100 bg-white rounded-t-xl px-6 py-5">
-                                    <div className="card-title text-indigo-900 m-0">
-                                        <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mr-3 shadow-sm border border-indigo-100">
-                                            <Search className="w-4 h-4" />
-                                        </div>
-                                        Discovery Tool Details
-                                    </div>
-                                </div>
                                 <div className="p-6 space-y-6">
                                     {/* Category Info */}
                                     <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
@@ -122,15 +322,46 @@ export default function DiscoveryToolAnalysis() {
                                             <tbody>
                                                 <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                                                     <td className="w-1/3 px-4 py-3 font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100 text-[11px] uppercase tracking-wider">Category</td>
-                                                    <td className="px-4 py-3 font-semibold text-slate-800">D05 VG SOFTWARE</td>
+                                                    <td className="px-4 py-3 font-semibold text-slate-800">
+                                                        {activeModelId && Array.isArray(models) ? (models.find(m => String(m.model_id) === String(activeModelId))?.model_name || 'Selected Model') : 'Unknown Category'}
+                                                    </td>
                                                 </tr>
                                                 <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                                                     <td className="w-1/3 px-4 py-3 font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100 text-[11px] uppercase tracking-wider">Modeling Time Period</td>
-                                                    <td className="px-4 py-3 font-semibold text-slate-800">Dec'22 - Jul'25</td>
+                                                    <td className="px-4 py-3 font-semibold text-slate-800">
+                                                        {isLoadingDiscovery ? <Sk w="w-48" /> : (metrics?.periodStr || 'N/A')}
+                                                    </td>
                                                 </tr>
-                                                <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                                                    <td className="w-1/3 px-4 py-3 font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100 text-[11px] uppercase tracking-wider">Subcategories Included</td>
-                                                    <td className="px-4 py-3 font-semibold text-slate-800">SOFTWARE</td>
+                                                <tr className="border-b border-slate-100 last:border-0">
+                                                    <td className="w-1/3 px-4 py-3 font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100 text-[11px] uppercase tracking-wider align-top pt-4">Subcategories</td>
+                                                    <td className="px-3 py-3">
+                                                        {isLoadingDiscovery ? (
+                                                            <div className="flex gap-2"><Sk w="w-16" /><Sk w="w-20" /><Sk w="w-12" /></div>
+                                                        ) : allL2s.length > 0 ? (
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                <button
+                                                                    onClick={() => setSelectedL2s(allL2s)}
+                                                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all ${selectedL2s.length === allL2s.length
+                                                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                                                        : 'bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50'
+                                                                        }`}
+                                                                >All</button>
+                                                                {allL2s.map(l2 => (
+                                                                    <button
+                                                                        key={l2}
+                                                                        onClick={() => toggleL2(l2)}
+                                                                        title={l2}
+                                                                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all max-w-[120px] truncate ${selectedL2s.includes(l2)
+                                                                            ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                                                                            : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
+                                                                            }`}
+                                                                    >{l2}</button>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs text-slate-500 italic">Mixed</span>
+                                                        )}
+                                                    </td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -141,19 +372,57 @@ export default function DiscoveryToolAnalysis() {
                                         <table className="w-full text-sm">
                                             <thead>
                                                 <tr>
-                                                    <th colSpan="3" className="px-4 py-3 text-xs font-extrabold text-white bg-indigo-600 uppercase tracking-wider text-center shadow-inner">YOY Change %</th>
+                                                    <th colSpan="3" className="px-4 py-3 text-xs font-extrabold text-white bg-indigo-600 uppercase tracking-wider text-center shadow-inner">
+                                                        <div className="flex items-center justify-center gap-3">
+                                                            <span>YOY Change</span>
+                                                            <div className="flex rounded-lg overflow-hidden border border-indigo-400 text-[10px] font-bold">
+                                                                <button
+                                                                    onClick={() => setYoyShowNumbers(false)}
+                                                                    className={`px-2 py-0.5 transition-colors ${!yoyShowNumbers ? 'bg-white text-indigo-700' : 'bg-indigo-500 text-white hover:bg-indigo-400'}`}
+                                                                >%</button>
+                                                                <button
+                                                                    onClick={() => setYoyShowNumbers(true)}
+                                                                    className={`px-2 py-0.5 transition-colors ${yoyShowNumbers ? 'bg-white text-indigo-700' : 'bg-indigo-500 text-white hover:bg-indigo-400'}`}
+                                                                >#</button>
+                                                            </div>
+                                                        </div>
+                                                    </th>
                                                 </tr>
                                                 <tr className="bg-slate-50">
-                                                    <th className={thClass + " text-center"}>Omni Unit Sales</th>
+                                                    <th className={thClass + " text-center"}>{yoyShowNumbers ? 'Omni Unit Sales' : 'Omni Unit Sales'}</th>
                                                     <th className={thClass + " text-center"}>Omni GMV ($)</th>
                                                     <th className={thClass + " text-center"}>WMC Spends ($)</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <tr className="hover:bg-slate-50 transition-colors">
-                                                    <td className={tdClass + " text-center font-mono font-medium text-rose-600"}>-6%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium text-rose-600"}>-20%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium text-rose-600"}>-24%</td>
+                                                    {isLoadingDiscovery ? (
+                                                        <><td className={`${tdClass} text-center`}><Sk /></td><td className={`${tdClass} text-center`}><Sk /></td><td className={`${tdClass} text-center`}><Sk /></td></>
+                                                    ) : yoyShowNumbers ? (
+                                                        <>
+                                                            <td className={`${tdClass} text-center font-mono font-medium text-slate-700`}>
+                                                                {metrics?.periods?.at(-1)?.rawUnits
+                                                                    ? (metrics.periods.at(-1).rawUnits >= 1e6 ? `${(metrics.periods.at(-1).rawUnits / 1e6).toFixed(2)}M` : metrics.periods.at(-1).rawUnits >= 1e3 ? `${(metrics.periods.at(-1).rawUnits / 1e3).toFixed(1)}K` : metrics.periods.at(-1).rawUnits.toFixed(0))
+                                                                    : 'N/A'}
+                                                            </td>
+                                                            <td className={`${tdClass} text-center font-mono font-medium text-slate-700`}>
+                                                                {metrics?.periods?.at(-1)?.rawSales
+                                                                    ? `$${metrics.periods.at(-1).rawSales >= 1e6 ? `${(metrics.periods.at(-1).rawSales / 1e6).toFixed(2)}M` : metrics.periods.at(-1).rawSales >= 1e3 ? `${(metrics.periods.at(-1).rawSales / 1e3).toFixed(1)}K` : metrics.periods.at(-1).rawSales.toFixed(0)}`
+                                                                    : 'N/A'}
+                                                            </td>
+                                                            <td className={`${tdClass} text-center font-mono font-medium text-slate-700`}>
+                                                                {metrics?.periods?.at(-1)?.rawSpend
+                                                                    ? `$${metrics.periods.at(-1).rawSpend >= 1e6 ? `${(metrics.periods.at(-1).rawSpend / 1e6).toFixed(2)}M` : metrics.periods.at(-1).rawSpend >= 1e3 ? `${(metrics.periods.at(-1).rawSpend / 1e3).toFixed(1)}K` : metrics.periods.at(-1).rawSpend.toFixed(0)}`
+                                                                    : 'N/A'}
+                                                            </td>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <td className={`${tdClass} text-center font-mono font-medium ${(metrics?.yoy?.units ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(metrics?.yoy?.units ?? 0) > 0 ? '+' : ''}{(metrics?.yoy?.units ?? 0).toFixed(1)}%</td>
+                                                            <td className={`${tdClass} text-center font-mono font-medium ${(metrics?.yoy?.sales ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(metrics?.yoy?.sales ?? 0) > 0 ? '+' : ''}{(metrics?.yoy?.sales ?? 0).toFixed(1)}%</td>
+                                                            <td className={`${tdClass} text-center font-mono font-medium ${(metrics?.yoy?.spend ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(metrics?.yoy?.spend ?? 0) > 0 ? '+' : ''}{(metrics?.yoy?.spend ?? 0).toFixed(1)}%</td>
+                                                        </>
+                                                    )}
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -171,16 +440,16 @@ export default function DiscoveryToolAnalysis() {
                                                     <th className={thClass + " text-center"}>Price</th>
                                                     <th className={thClass + " text-center"}>Unit Sales Online</th>
                                                     <th className={thClass + " text-center"}>GMV Sales Online</th>
-                                                    <th className={thClass + " text-center"}>#Brands in final stack</th>
+                                                    <th className={thClass + " text-center"}>Brands in Final Stack</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <tr className="hover:bg-slate-50 transition-colors">
-                                                    <td className={tdClass + " text-center font-mono"}>1.51%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>$19.3</td>
-                                                    <td className={tdClass + " text-center font-mono"}>10%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>18%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>30</td>
+                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.wmcPen ?? 0).toFixed(2)}%`}</td>
+                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `$${(metrics?.avgPrice ?? 0).toFixed(2)}`}</td>
+                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.unitOnlinePct ?? 0).toFixed(1)}%`}</td>
+                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.salesOnlinePct ?? 0).toFixed(1)}%`}</td>
+                                                    <td className={tdClass + " text-center font-mono font-extrabold text-indigo-700 text-base"}>{isLoadingDiscovery ? <Sk w="w-8" /> : (discoveryData?.metadata?.num_brands || 0)}</td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -202,144 +471,31 @@ export default function DiscoveryToolAnalysis() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <tr className="hover:bg-slate-50 transition-colors">
-                                                    <td className={tdClassBold}>Dec'22 - Jul'23</td>
-                                                    <td className={tdClass + " text-center font-mono"}>8.9%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>16.2%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>1.0%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>$20.5</td>
-                                                </tr>
-                                                <tr className="hover:bg-slate-50 transition-colors">
-                                                    <td className={tdClassBold}>Aug'23 - Jul'24</td>
-                                                    <td className={tdClass + " text-center font-mono"}>10.2%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>18.2%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>1.8%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>$20.4</td>
-                                                </tr>
-                                                <tr className="hover:bg-slate-50 transition-colors">
-                                                    <td className={tdClassBold}>Aug'24 - Jul'25</td>
-                                                    <td className={tdClass + " text-center font-mono"}>9.3%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>20.1%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>1.7%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>$17.3</td>
-                                                </tr>
+                                                {isLoadingDiscovery ? (
+                                                    [0, 1, 2].map(i => (
+                                                        <tr key={i} className="hover:bg-slate-50">
+                                                            <td className={tdClassBold}><Sk w="w-32" /></td>
+                                                            <td className={tdClass + " text-center"}><Sk /></td>
+                                                            <td className={tdClass + " text-center"}><Sk /></td>
+                                                            <td className={tdClass + " text-center"}><Sk /></td>
+                                                            <td className={tdClass + " text-center"}><Sk /></td>
+                                                        </tr>
+                                                    ))
+                                                ) : metrics?.periods.map((p, i) => (
+                                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                        <td className={tdClassBold}>{p.name}</td>
+                                                        <td className={tdClass + " text-center font-mono"}>{p.unitOnlinePct.toFixed(1)}%</td>
+                                                        <td className={tdClass + " text-center font-mono"}>{p.salesOnlinePct.toFixed(1)}%</td>
+                                                        <td className={tdClass + " text-center font-mono"}>{p.wmcPen.toFixed(2)}%</td>
+                                                        <td className={tdClass + " text-center font-mono"}>${p.price.toFixed(2)}</td>
+                                                    </tr>
+                                                ))}
                                                 <tr className="bg-slate-50/80 hover:bg-slate-100 transition-colors">
                                                     <td className="px-4 py-3 text-xs font-extrabold text-slate-800 uppercase tracking-wider">Change YOY %</td>
-                                                    <td className={tdClass + " text-center font-mono text-rose-600 font-semibold"}>-8%</td>
-                                                    <td className={tdClass + " text-center font-mono text-rose-600 font-semibold"}>-12%</td>
-                                                    <td className={tdClass + " text-center font-mono text-rose-600 font-semibold"}>-5%</td>
-                                                    <td className={tdClass + " text-center font-mono text-rose-600 font-semibold"}>-15%</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    <div className="flex justify-end pt-2">
-                                        <button className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-all shadow-indigo-200">
-                                            <Activity className="w-4 h-4" />
-                                            Generate Discovery Report
-                                        </button>
-                                    </div>
-                                </div>
-                            </motion.div>
-
-                            {/* Card 2: Key Metrics - Media Tactics */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 15 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: 0.2 }}
-                                className="card shadow-sm hover:shadow-md transition-shadow"
-                            >
-                                <div className="card-header border-b border-slate-100 bg-white rounded-t-xl px-6 py-5">
-                                    <div className="card-title text-emerald-900 m-0">
-                                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mr-3 shadow-sm border border-emerald-100">
-                                            <Target className="w-4 h-4" />
-                                        </div>
-                                        Key Metrics - Media Tactics
-                                    </div>
-                                </div>
-                                <div className="p-6 overflow-x-auto">
-                                    <div className="min-w-[700px] overflow-hidden rounded-xl border border-slate-200 shadow-sm inline-block">
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th rowSpan="2" className={thClassPrimary + " bg-emerald-600 border-emerald-700 w-[200px]"}></th>
-                                                    <th colSpan="3" className="px-4 py-2 text-[10px] font-extrabold text-white bg-emerald-600 border-b border-r border-emerald-700 uppercase tracking-wider text-center shadow-inner">Spend Share</th>
-                                                    <th rowSpan="2" className="px-4 py-2 text-[10px] font-extrabold text-white bg-emerald-600 border-b border-r border-emerald-700 uppercase tracking-wider text-center shadow-inner">Change YOY %</th>
-                                                    <th colSpan="2" className="px-4 py-2 text-[10px] font-extrabold text-white bg-emerald-600 border-b border-emerald-700 uppercase tracking-wider text-center shadow-inner">CPC/CPM/CPD Aug'24 - Jul'25</th>
-                                                </tr>
-                                                <tr>
-                                                    <th className="px-3 py-2 text-[9px] font-bold text-white bg-emerald-500/90 border-b border-r border-emerald-600 uppercase tracking-wider text-center w-[80px]">Dec'22 - Jul'23</th>
-                                                    <th className="px-3 py-2 text-[9px] font-bold text-white bg-emerald-500/90 border-b border-r border-emerald-600 uppercase tracking-wider text-center w-[80px]">Aug'23 - Jul'24</th>
-                                                    <th className="px-3 py-2 text-[9px] font-bold text-white bg-emerald-500/90 border-b border-r border-emerald-600 uppercase tracking-wider text-center w-[80px]">Aug'24 - Jul'25</th>
-                                                    <th className="px-3 py-2 text-[9px] font-bold text-white bg-emerald-500/90 border-b border-r border-emerald-600 uppercase tracking-wider text-center w-[80px]">CPC/CPM/CPD</th>
-                                                    <th className="px-3 py-2 text-[9px] font-bold text-white bg-emerald-500/90 border-b border-emerald-600 uppercase tracking-wider text-center w-[80px]">YOY change %</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="text-[11px]">
-                                                {/* Data mapping - taking a sample from original */}
-                                                <tr className="bg-slate-50 hover:bg-slate-100 transition-colors border-b-2 border-slate-200">
-                                                    <td className={tdClassBold}>Search Total</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>18.5%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>11.3%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>21.0%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium text-emerald-600"}>42%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>1.2</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium text-emerald-600"}>63%</td>
-                                                </tr>
-                                                <tr className={getRowHighlightClass('7.9') + " border-b border-slate-100"}>
-                                                    <td className={tdClass + " pl-6 font-medium"}>Sponsored Products Auto</td>
-                                                    <td className={tdClass + " text-center font-mono"}>7.9%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>4.4%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>10.3%</td>
-                                                    <td className={tdClass + " text-center font-mono text-emerald-600 font-medium"}>75%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>1.2</td>
-                                                    <td className={tdClass + " text-center font-mono text-emerald-600 font-medium"}>108%</td>
-                                                </tr>
-                                                <tr className={getRowHighlightClass('6.8') + " border-b border-slate-100"}>
-                                                    <td className={tdClass + " pl-6 font-medium"}>Sponsored Products Manual</td>
-                                                    <td className={tdClass + " text-center font-mono"}>6.8%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>3.3%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>6.8%</td>
-                                                    <td className={tdClass + " text-center font-mono text-emerald-600 font-medium"}>55%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>1.1</td>
-                                                    <td className={tdClass + " text-center font-mono text-emerald-600 font-medium"}>76%</td>
-                                                </tr>
-                                                <tr className="bg-slate-50 hover:bg-slate-100 transition-colors border-b-2 border-slate-200 mt-2">
-                                                    <td className={tdClassBold}>Onsite Display Total</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>64.2%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>53.6%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>39.9%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium text-rose-600"}>-44%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>8.0</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium text-rose-600"}>-16%</td>
-                                                </tr>
-                                                <tr className={getRowHighlightClass('26.9') + " border-b border-slate-100"}>
-                                                    <td className={tdClass + " pl-6 font-medium"}>Onsite Display Audience</td>
-                                                    <td className={tdClass + " text-center font-mono"}>26.9%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>15.7%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>14.2%</td>
-                                                    <td className={tdClass + " text-center font-mono text-rose-600 font-medium"}>-32%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>8.9</td>
-                                                    <td className={tdClass + " text-center font-mono text-rose-600 font-medium"}>-31%</td>
-                                                </tr>
-                                                <tr className={getRowHighlightClass('20.2') + " border-b border-slate-100"}>
-                                                    <td className={tdClass + " pl-6 font-medium"}>Onsite Display Contextual</td>
-                                                    <td className={tdClass + " text-center font-mono"}>20.2%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>16.0%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>9.4%</td>
-                                                    <td className={tdClass + " text-center font-mono text-rose-600 font-medium"}>-55%</td>
-                                                    <td className={tdClass + " text-center font-mono"}>9.9</td>
-                                                    <td className={tdClass + " text-center font-mono text-rose-600 font-medium"}>-25%</td>
-                                                </tr>
-                                                <tr className="bg-slate-50 hover:bg-slate-100 transition-colors border-b-2 border-slate-200 mt-2">
-                                                    <td className={tdClassBold}>Offsite Display Total</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>12.2%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>17.1%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>34.4%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium text-emerald-600"}>52%</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium"}>9.4</td>
-                                                    <td className={tdClass + " text-center font-mono font-medium text-emerald-600"}>107%</td>
+                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.unitOnline ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.unitOnline ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.unitOnline ?? 0).toFixed(1)}%`}</td>
+                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.salesOnline ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.salesOnline ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.salesOnline ?? 0).toFixed(1)}%`}</td>
+                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.wmcPen ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.wmcPen ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.wmcPen ?? 0).toFixed(1)}%`}</td>
+                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.price ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.price ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.price ?? 0).toFixed(1)}%`}</td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -348,65 +504,26 @@ export default function DiscoveryToolAnalysis() {
                             </motion.div>
                         </div>
 
-                        {/* Charts Area */}
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                            <motion.div
-                                initial={{ opacity: 0, y: 15 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: 0.3 }}
-                                className="card shadow-sm hover:shadow-md transition-shadow"
-                            >
-                                <div className="card-header border-b border-slate-100 bg-white rounded-t-xl px-6 py-5">
-                                    <div className="card-title text-amber-900 m-0">
-                                        <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center mr-3 shadow-sm border border-amber-100">
-                                            <TrendingUp className="w-4 h-4" />
-                                        </div>
-                                        Key Events - GMV Sales
-                                    </div>
-                                </div>
-                                <div className="p-6">
-                                    <TimeSeriesChart height={300} type="area" />
-                                </div>
-                            </motion.div>
+                        {/* Restore Tactics Table to Analysis Page */}
+                        <div className="mt-8">
+                            <MediaTacticsTable metrics={isLoadingDiscovery ? null : metrics} isLoading={isLoadingDiscovery} />
+                        </div>
 
-                            <motion.div
-                                initial={{ opacity: 0, y: 15 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: 0.4 }}
-                                className="card shadow-sm hover:shadow-md transition-shadow"
+                        {/* Action Bar */}
+                        <div className="flex justify-end pt-8 pb-8">
+                            <button
+                                onClick={() => navigate('/step/tool-review')}
+                                className="group flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-lg shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 active:scale-95"
                             >
-                                <div className="card-header border-b border-slate-100 bg-white rounded-t-xl px-6 py-5">
-                                    <div className="card-title text-blue-900 m-0">
-                                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mr-3 shadow-sm border border-blue-100">
-                                            <BarChart2 className="w-4 h-4" />
-                                        </div>
-                                        Spend vs Impressions
-                                    </div>
-                                </div>
-                                <div className="p-6">
-                                    <ComparisonBarChart
-                                        title="Media Performance Analysis"
-                                        data={[
-                                            { date: 'Variable A', spend: 3500, impressions: 4200 },
-                                            { date: 'Variable B', spend: 2200, impressions: 1800 },
-                                            { date: 'Variable C', spend: 3800, impressions: 2800 },
-                                            { date: 'Variable D', spend: 2400, impressions: 9800 },
-                                            { date: 'Variable E', spend: 4800, impressions: 5200 },
-                                        ]}
-                                        dataKey1="spend"
-                                        dataKey2="impressions"
-                                        color1="#FFA726"
-                                        color2="#0071DC"
-                                        height={300}
-                                    />
-                                </div>
-                            </motion.div>
+                                <span>Proceed to Tool Review</span>
+                                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                            </button>
                         </div>
 
                         <AutomationNote notes={step.automationNotes} />
                     </motion.div>
                 )}
             </div>
-        </motion.div>
+        </motion.div >
     );
 }

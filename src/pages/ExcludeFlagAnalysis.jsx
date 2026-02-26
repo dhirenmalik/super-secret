@@ -351,26 +351,13 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
                 breadcrumb={['Dashboard', 'EDA Phase', step.name]}
                 stepNumber={step.id}
                 phase={step.phase}
+                activeModelId={activeModelId}
+                models={models}
+                onModelSwitch={() => setActiveModelId('')}
             >
                 <div className="flex items-center gap-4">
                     {activeModelId && (
                         <>
-                            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Model:</span>
-                                <span className="text-sm font-semibold text-blue-700">
-                                    {models.find(m => String(m.model_id) === String(activeModelId))?.model_name || 'Selected Model'}
-                                </span>
-                                <button
-                                    onClick={() => setActiveModelId('')}
-                                    className="ml-2 p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 transition-colors"
-                                    title="Switch Model"
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M4 4l5 5" />
-                                    </svg>
-                                </button>
-                            </div>
-
                             <div className="flex items-center p-1 bg-slate-100/80 backdrop-blur-md rounded-xl shadow-inner border border-slate-200/50">
                                 <button
                                     className={`relative px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center gap-2 ${currentPhase === 1 ? 'bg-white shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
@@ -531,15 +518,26 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
                                     </div>
                                     <div className="ml-auto text-[10px] font-bold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">AUTO</div>
                                 </div>
-                                <div className="stat-card border-l-4 border-l-red-500 hover:shadow-lg transition-all">
-                                    <div className="stat-icon red">
-                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                                <div className="stat-card border-l-4 border-l-emerald-500 hover:shadow-lg transition-all">
+                                    <div className="stat-icon" style={{ background: '#d1fae5', color: '#059669' }}>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
                                     </div>
                                     <div>
-                                        <div className="stat-value">{filteredBrandData.summary.exclude_flag_count}</div>
-                                        <div className="stat-label">Excluded Brands</div>
+                                        <div className="stat-value">
+                                            {filteredBrandData.summary.included_brands_count ?? (
+                                                // client-side fallback: unique groups + ungrouped included
+                                                (() => {
+                                                    const rows = filteredBrandData.rows || [];
+                                                    const included = rows.filter(r => !r.exclude_flag || r.exclude_flag === 0 || r.exclude_flag === '');
+                                                    const groupIds = new Set(included.filter(r => r.combine_flag && r.combine_flag !== '' && r.combine_flag !== null).map(r => r.combine_flag));
+                                                    const ungrouped = included.filter(r => !r.combine_flag || r.combine_flag === '' || r.combine_flag === null).length;
+                                                    return groupIds.size + ungrouped;
+                                                })()
+                                            )}
+                                        </div>
+                                        <div className="stat-label">Included Brands</div>
                                     </div>
-                                    <div className="ml-auto text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">AUTO</div>
+                                    <div className="ml-auto text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">AUTO</div>
                                 </div>
                                 <div className="stat-card border-l-4 border-l-amber-500 hover:shadow-lg transition-all">
                                     <div className="stat-icon yellow">

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
-import { fetchFiles, fetchLatestFile, updateReportStatus } from '../api/kickoff';
+import { fetchFiles, fetchLatestFile, updateReportStatus, getApiBaseUrl } from '../api/kickoff';
 import ReportViewer from '../components/kickoff/ReportViewer';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
@@ -13,6 +13,24 @@ export default function KickoffReportReview() {
     const [fileId, setFileId] = useState('');
     const [reports, setReports] = useState([]);
     const [isActionLoading, setIsActionLoading] = useState(false);
+    const [models, setModels] = useState([]);
+    const [activeModelId, setActiveModelId] = useState(localStorage.getItem('active_model_id') || '');
+
+    useEffect(() => {
+        loadModels();
+    }, []);
+
+    const loadModels = async () => {
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/models`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setModels(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Error fetching models:', error);
+        }
+    };
 
     const loadReports = async () => {
         try {
@@ -55,6 +73,12 @@ export default function KickoffReportReview() {
                 breadcrumb={['Dashboard', 'EDA Phase', step.name]}
                 stepNumber={step.id}
                 phase={step.phase}
+                activeModelId={activeModelId}
+                models={models}
+                onModelSwitch={() => {
+                    setActiveModelId('');
+                    localStorage.removeItem('active_model_id');
+                }}
             >
                 <div className="flex items-center gap-4">
                     <StatusBadge status={currentReport?.status || 'uploaded'} />
