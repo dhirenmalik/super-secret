@@ -5,6 +5,9 @@ from typing import List, Optional, Dict, Any
 from app.core.database import get_db
 from app.core.rbac import get_current_user
 from . import service, schemas, models
+from . import stack
+from . import discovery
+import pandas as pd
 
 router = APIRouter(tags=["analytics"])
 
@@ -198,3 +201,49 @@ async def get_built_stack(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/eda/discovery/{model_id}", response_model=schemas.DiscoveryChartResponse)
+async def get_discovery_analysis(
+    model_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        return discovery.get_discovery_data(db, model_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+        
+@router.post("/eda/discovery/generate-insights", response_model=schemas.AnomalyInsightsResponse)
+async def generate_discovery_insights(
+    payload: schemas.AnomalyInsightsRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    try:
+        # Fetch the project name
+        from app.modules.governance.models import Model
+        model = db.query(Model).filter(Model.model_id == payload.model_id).first()
+        project_name = model.model_name if model else f"model_{payload.model_id}"
+        
+        # Convert dicts back to DataFrame for the LLM function
+        df = pd.DataFrame(payload.records)
+        insights = discovery.summarize_observations_llm(df, payload.model_id, project_name)
+        return {"agent_insights": insights}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/eda/brand-agg/{model_id}")
+async def get_brand_agg_analysis(
+    model_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        return service.get_brand_agg_stack(db, model_id)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))

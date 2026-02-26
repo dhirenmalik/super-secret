@@ -6,7 +6,7 @@ import hashlib
 from app.core.config import get_settings
 
 settings = get_settings()
-UPLOAD_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "uploads"))
+UPLOAD_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data"))
 
 def ensure_upload_root() -> None:
     os.makedirs(UPLOAD_ROOT, exist_ok=True)

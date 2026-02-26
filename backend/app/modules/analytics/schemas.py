@@ -260,3 +260,34 @@ class BrandExclusionResponse(BaseModel):
     rows: List[BrandExclusionRow]
     summary: BrandExclusionSummary
     warnings: List[str] = []
+
+# Discovery Tool Schemas
+class DiscoveryChartResponse(BaseModel):
+    columns: List[str]
+    time_series: List[Dict[str, Any]]
+    anomalies: List[Dict[str, Any]]
+    metadata: Optional[Dict[str, Any]] = None
+
+class AnomalyRecord(BaseModel):
+    Tactic_Prefix: str
+    Anomaly_Date: str
+    Reason: str
+    Priority: float
+    Impressions: float
+    Spend: float
+    CPM: float
+    Z: float
+    Brands_list: Optional[str] = None
+    SourceFile: str
+    Severity_Score: Optional[float] = None
+    Severity_Band: Optional[str] = None
+
+class AnomalyResponse(BaseModel):
+    records: List[AnomalyRecord]
+
+class AnomalyInsightsRequest(BaseModel):
+    model_id: int
+    records: List[Dict[str, Any]]
+
+class AnomalyInsightsResponse(BaseModel):
+    agent_insights: str

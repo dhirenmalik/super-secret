@@ -28,7 +28,27 @@ def create_model(
 
 @router.get("/models", response_model=List[schemas.Model])
 def list_models(db: Session = Depends(get_db)):
-    return db.query(models.Model).filter(models.Model.is_deleted == False).all()
+    from app.modules.analytics.models import DiscoveryStack
+    db_models = db.query(models.Model).filter(models.Model.is_deleted == False).all()
+    result = []
+    
+    # Pre-fetch all built stack model IDs to avoid N+1 queries
+    built_stacks = db.query(DiscoveryStack.model_id).filter(DiscoveryStack.stack_type == 'modeling_stack').distinct().all()
+    built_model_ids = {s.model_id for s in built_stacks}
+
+    for m in db_models:
+        m_dict = schemas.Model(
+            model_id=m.model_id,
+            model_name=m.model_name,
+            model_type=m.model_type,
+            status=m.status,
+            current_stage_id=m.current_stage_id,
+            created_at=m.created_at,
+            created_by=m.created_by,
+            stack_built=(m.model_id in built_model_ids)
+        )
+        result.append(m_dict)
+    return result
 
 @router.get("/models/{model_id}", response_model=schemas.Model)
 def get_model(model_id: int, db: Session = Depends(get_db)):

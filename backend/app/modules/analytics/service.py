@@ -13,6 +13,7 @@ from difflib import SequenceMatcher
 from app.core.database import SessionLocal
 from app.core import storage as file_storage
 from . import schemas, models
+from .models import DiscoveryStack, DiscoveryStackData
 from app.exclude_flag_automation.Exclude_Flag_function import exclude_flag_automation_function
 
 # ==========================================================
@@ -56,6 +57,9 @@ def calculate_summary(df: pd.DataFrame, group_by: str = "L2") -> pd.DataFrame:
     resolved_mapping = {}
     cols_upper = {c.upper(): c for c in df.columns}
     
+    # Fields that are intentionally derived from other columns (not expected in raw data)
+    DERIVED_FIELDS = {"total_spends"}
+
     for logical, alternatives in mapping.items():
         found = False
         for alt in alternatives:
@@ -63,8 +67,10 @@ def calculate_summary(df: pd.DataFrame, group_by: str = "L2") -> pd.DataFrame:
                 resolved_mapping[logical] = cols_upper[alt.upper()]
                 found = True
                 break
-        if not found:
+        if not found and logical not in DERIVED_FIELDS:
             print(f"[WARNING] Could not resolve column for logical field: {logical}")
+        elif not found and logical in DERIVED_FIELDS:
+            print(f"[DEBUG] '{logical}' will be derived from component columns (search + onsite + offsite).")
     
     # Ensure numeric and aggregate
     for logical, physical in resolved_mapping.items():
@@ -1368,6 +1374,12 @@ async def get_brand_exclusion_data(file_id: str, db: Session, model_id: Optional
         "part3": part3,
         "combine_flag_count": int(res_df['Combine Flag'].dropna().nunique()),
         "exclude_flag_count": int((res_df['Exclude Flag'] == 1).sum()),
+        "included_brands_count": (
+            # Count unique combine groups (each group = 1 brand)
+            int(res_df[(res_df['Exclude Flag'] == 0) & res_df['Combine Flag'].notna() & (res_df['Combine Flag'] != '')]['Combine Flag'].nunique()) +
+            # Count standalone included brands (no group)
+            int(((res_df['Exclude Flag'] == 0) & (res_df['Combine Flag'].isna() | (res_df['Combine Flag'] == ''))).sum())
+        ),
         "issue_counts": {
             "private_brand": int((res_df['Private Brand'] == 1).sum()),
             "mapping_issue": int((res_df['Mapping Issue'] == 1).sum()),
@@ -1494,6 +1506,10 @@ def calculate_brand_summary_from_rows(data: Dict[str, Any]) -> Dict[str, Any]:
         ],
         "combine_flag_count": int(df['combine_flag'].dropna().nunique()),
         "exclude_flag_count": int((df['exclude_flag'] == 1).sum()),
+        "included_brands_count": (
+            int(df[(df['exclude_flag'] == 0) & df['combine_flag'].notna() & (df['combine_flag'] != '')]['combine_flag'].nunique()) +
+            int(((df['exclude_flag'] == 0) & (df['combine_flag'].isna() | (df['combine_flag'] == ''))).sum())
+        ),
         "issue_counts": {
             "private_brand": int((df['private_brand'] == 1).sum()),
             "mapping_issue": int((df['mapping_issue'] == 1).sum()),
@@ -1502,3 +1518,22 @@ def calculate_brand_summary_from_rows(data: Dict[str, Any]) -> Dict[str, Any]:
     }
     data["summary"]["issue_counts"]["low_share"] = max(0, data["summary"]["issue_counts"]["low_share"])
     return data
+
+def get_brand_agg_stack(db: Session, model_id: int) -> List[Dict[str, Any]]:
+    """
+    Fetches the full 'brand_agg' stack data from the database for the given model_id.
+    This is used by Tool Review and other granular analysis pages.
+    """
+    stack_entry = db.query(DiscoveryStack).filter(
+        DiscoveryStack.model_id == model_id, 
+        DiscoveryStack.stack_type == 'brand_agg'
+    ).first()
+    
+    if not stack_entry:
+        return []
+
+    data_rows = db.query(DiscoveryStackData).filter(DiscoveryStackData.stack_id == stack_entry.stack_id).all()
+    if not data_rows:
+        return []
+
+    return [json.loads(d.row_data) for d in data_rows]

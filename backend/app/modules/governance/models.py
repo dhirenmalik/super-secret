@@ -14,7 +14,7 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 # Cross-module imports for direct relationship resolution
-from app.modules.analytics.models import Stack, SubcatAnalysis
+from app.modules.analytics.models import Stack, SubcatAnalysis, DiscoveryStack
 
 # ==========================================================
 # RBAC SECTION
@@ -96,6 +96,7 @@ class Model(Base):
     # Cross-module relationships (will use string references)
     stacks = relationship("Stack", back_populates="model", cascade="all, delete-orphan")
     analyses = relationship("SubcatAnalysis", back_populates="model", cascade="all, delete-orphan")
+    discovery_stacks = relationship("DiscoveryStack", back_populates="model", cascade="all, delete-orphan")
 
 # ==========================================================
 # FILE MANAGEMENT

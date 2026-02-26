@@ -68,6 +68,7 @@ class Model(ModelBase):
     current_stage_id: Optional[int]
     created_at: datetime
     created_by: int
+    stack_built: bool = False
     class Config:
         from_attributes = True
 

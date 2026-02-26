@@ -9,7 +9,9 @@ import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 import ModelGallery from '../components/ModelGallery';
 import MediaTacticsTable from '../components/discovery/MediaTacticsTable';
-import { Target, Search, Loader2, Activity, TrendingUp, BarChart2, Layers, ArrowRight } from 'lucide-react';
+import AgentInsights from '../components/discovery/AgentInsights';
+import SummarySheet from '../components/eda/SummarySheet';
+import { Target, Search, Loader2, Activity, TrendingUp, BarChart2, Layers, ArrowRight, Bot, Layout, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const step = steps.find((s) => s.slug === 'discovery-tool-analysis');
@@ -45,6 +47,9 @@ export default function DiscoveryToolAnalysis() {
     const [discoveryError, setDiscoveryError] = useState(null);
     const [yoyShowNumbers, setYoyShowNumbers] = useState(false);
     const [selectedL2s, setSelectedL2s] = useState([]);
+    const [activeTab, setActiveTab] = useState('analysis'); // 'analysis', 'observations', 'summary'
+    const [tacticFilter, setTacticFilter] = useState('All');
+    const [severityFilter, setSeverityFilter] = useState('All');
     const navigate = useNavigate();
 
     // Reset L2 selection whenever a new model is loaded
@@ -306,219 +311,284 @@ export default function DiscoveryToolAnalysis() {
                     />
                 ) : (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
-                        <div className="flex flex-col gap-6">
 
-                            {/* Card 1: Discovery Tool Details */}
+                        {/* Premium Tab Navigation */}
+                        <div className="flex items-center gap-1 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200 w-fit backdrop-blur-sm shadow-sm">
+                            {[
+                                { id: 'analysis', label: 'Analysis Trends', icon: Activity },
+                                { id: 'observations', label: 'AI Observations', icon: Bot },
+                                { id: 'summary', label: 'Metric Summary', icon: Layout },
+                            ].map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = activeTab === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`relative flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${isActive
+                                            ? 'text-indigo-700 shadow-md translate-y-0'
+                                            : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                                            }`}
+                                    >
+                                        {isActive && (
+                                            <motion.div
+                                                layoutId="activeTabBg"
+                                                className="absolute inset-0 bg-white rounded-xl shadow-sm border border-indigo-100"
+                                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                            />
+                                        )}
+                                        <Icon size={18} className={`relative z-10 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                                        <span className="relative z-10">{tab.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <AnimatePresence mode="wait">
                             <motion.div
-                                initial={{ opacity: 0, y: 15 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: 0.1 }}
-                                className="card shadow-sm hover:shadow-md transition-shadow"
+                                key={activeTab}
+                                initial={{ opacity: 0, x: 10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
+                                transition={{ duration: 0.3 }}
+                                className="space-y-6"
                             >
-                                <div className="p-6 space-y-6">
-                                    {/* Category Info */}
-                                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-                                        <table className="w-full text-sm">
-                                            <tbody>
-                                                <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                                                    <td className="w-1/3 px-4 py-3 font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100 text-[11px] uppercase tracking-wider">Category</td>
-                                                    <td className="px-4 py-3 font-semibold text-slate-800">
-                                                        {activeModelId && Array.isArray(models) ? (models.find(m => String(m.model_id) === String(activeModelId))?.model_name || 'Selected Model') : 'Unknown Category'}
-                                                    </td>
-                                                </tr>
-                                                <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                                                    <td className="w-1/3 px-4 py-3 font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100 text-[11px] uppercase tracking-wider">Modeling Time Period</td>
-                                                    <td className="px-4 py-3 font-semibold text-slate-800">
-                                                        {isLoadingDiscovery ? <Sk w="w-48" /> : (metrics?.periodStr || 'N/A')}
-                                                    </td>
-                                                </tr>
-                                                <tr className="border-b border-slate-100 last:border-0">
-                                                    <td className="w-1/3 px-4 py-3 font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100 text-[11px] uppercase tracking-wider align-top pt-4">Subcategories</td>
-                                                    <td className="px-3 py-3">
-                                                        {isLoadingDiscovery ? (
-                                                            <div className="flex gap-2"><Sk w="w-16" /><Sk w="w-20" /><Sk w="w-12" /></div>
-                                                        ) : allL2s.length > 0 ? (
-                                                            <div className="flex flex-wrap gap-1.5">
-                                                                <button
-                                                                    onClick={() => setSelectedL2s(allL2s)}
-                                                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all ${selectedL2s.length === allL2s.length
-                                                                        ? 'bg-indigo-600 text-white border-indigo-600'
-                                                                        : 'bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50'
-                                                                        }`}
-                                                                >All</button>
-                                                                {allL2s.map(l2 => (
-                                                                    <button
-                                                                        key={l2}
-                                                                        onClick={() => toggleL2(l2)}
-                                                                        title={l2}
-                                                                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all max-w-[120px] truncate ${selectedL2s.includes(l2)
-                                                                            ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
-                                                                            : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
-                                                                            }`}
-                                                                    >{l2}</button>
+                                {activeTab === 'analysis' && (
+                                    <div className="space-y-6">
+                                        <div className="flex flex-col gap-6">
+                                            {/* Card 1: Discovery Tool Details */}
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 15 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.4, delay: 0.1 }}
+                                                className="card shadow-sm hover:shadow-md transition-shadow"
+                                            >
+                                                <div className="p-6 space-y-6">
+                                                    {/* Category Info */}
+                                                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                                                        <table className="w-full text-sm">
+                                                            <tbody>
+                                                                <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                                                                    <td className="w-1/3 px-4 py-3 font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100 text-[11px] uppercase tracking-wider">Category</td>
+                                                                    <td className="px-4 py-3 font-semibold text-slate-800">
+                                                                        {activeModelId && Array.isArray(models) ? (models.find(m => String(m.model_id) === String(activeModelId))?.model_name || 'Selected Model') : 'Unknown Category'}
+                                                                    </td>
+                                                                </tr>
+                                                                <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                                                                    <td className="w-1/3 px-4 py-3 font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100 text-[11px] uppercase tracking-wider">Modeling Time Period</td>
+                                                                    <td className="px-4 py-3 font-semibold text-slate-800">
+                                                                        {isLoadingDiscovery ? <Sk w="w-48" /> : (metrics?.periodStr || 'N/A')}
+                                                                    </td>
+                                                                </tr>
+                                                                <tr className="border-b border-slate-100 last:border-0">
+                                                                    <td className="w-1/3 px-4 py-3 font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100 text-[11px] uppercase tracking-wider align-top pt-4">Subcategories</td>
+                                                                    <td className="px-3 py-3">
+                                                                        {isLoadingDiscovery ? (
+                                                                            <div className="flex gap-2"><Sk w="w-16" /><Sk w="w-20" /><Sk w="w-12" /></div>
+                                                                        ) : allL2s.length > 0 ? (
+                                                                            <div className="flex flex-wrap gap-1.5">
+                                                                                <button
+                                                                                    onClick={() => setSelectedL2s(allL2s)}
+                                                                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all ${selectedL2s.length === allL2s.length
+                                                                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                                                                        : 'bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50'
+                                                                                        }`}
+                                                                                >All</button>
+                                                                                {allL2s.map(l2 => (
+                                                                                    <button
+                                                                                        key={l2}
+                                                                                        onClick={() => toggleL2(l2)}
+                                                                                        title={l2}
+                                                                                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all max-w-[120px] truncate ${selectedL2s.includes(l2)
+                                                                                            ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                                                                                            : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
+                                                                                            }`}
+                                                                                    >{l2}</button>
+                                                                                ))}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-xs text-slate-500 italic">Mixed</span>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+
+                                                    {/* YOY Change */}
+                                                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                                                        <table className="w-full text-sm">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th colSpan="3" className="px-4 py-3 text-xs font-extrabold text-white bg-indigo-600 uppercase tracking-wider text-center shadow-inner">
+                                                                        <div className="flex items-center justify-center gap-3">
+                                                                            <span>YOY Change</span>
+                                                                            <div className="flex rounded-lg overflow-hidden border border-indigo-400 text-[10px] font-bold">
+                                                                                <button
+                                                                                    onClick={() => setYoyShowNumbers(false)}
+                                                                                    className={`px-2 py-0.5 transition-colors ${!yoyShowNumbers ? 'bg-white text-indigo-700' : 'bg-indigo-500 text-white hover:bg-indigo-400'}`}
+                                                                                >%</button>
+                                                                                <button
+                                                                                    onClick={() => setYoyShowNumbers(true)}
+                                                                                    className={`px-2 py-0.5 transition-colors ${yoyShowNumbers ? 'bg-white text-indigo-700' : 'bg-indigo-500 text-white hover:bg-indigo-400'}`}
+                                                                                >#</button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </th>
+                                                                </tr>
+                                                                <tr className="bg-slate-50">
+                                                                    <th className={thClass + " text-center"}>{yoyShowNumbers ? 'Omni Unit Sales' : 'Omni Unit Sales'}</th>
+                                                                    <th className={thClass + " text-center"}>Omni GMV ($)</th>
+                                                                    <th className={thClass + " text-center"}>WMC Spends ($)</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr className="hover:bg-slate-50 transition-colors">
+                                                                    {isLoadingDiscovery ? (
+                                                                        <><td className={`${tdClass} text-center`}><Sk /></td><td className={`${tdClass} text-center`}><Sk /></td><td className={`${tdClass} text-center`}><Sk /></td></>
+                                                                    ) : yoyShowNumbers ? (
+                                                                        <>
+                                                                            <td className={`${tdClass} text-center font-mono font-medium text-slate-700`}>
+                                                                                {metrics?.periods?.at(-1)?.rawUnits
+                                                                                    ? (metrics.periods.at(-1).rawUnits >= 1e6 ? `${(metrics.periods.at(-1).rawUnits / 1e6).toFixed(2)}M` : metrics.periods.at(-1).rawUnits >= 1e3 ? `${(metrics.periods.at(-1).rawUnits / 1e3).toFixed(1)}K` : metrics.periods.at(-1).rawUnits.toFixed(0))
+                                                                                    : 'N/A'}
+                                                                            </td>
+                                                                            <td className={`${tdClass} text-center font-mono font-medium text-slate-700`}>
+                                                                                {metrics?.periods?.at(-1)?.rawSales
+                                                                                    ? `$${metrics.periods.at(-1).rawSales >= 1e6 ? `${(metrics.periods.at(-1).rawSales / 1e6).toFixed(2)}M` : metrics.periods.at(-1).rawSales >= 1e3 ? `${(metrics.periods.at(-1).rawSales / 1e3).toFixed(1)}K` : metrics.periods.at(-1).rawSales.toFixed(0)}`
+                                                                                    : 'N/A'}
+                                                                            </td>
+                                                                            <td className={`${tdClass} text-center font-mono font-medium text-slate-700`}>
+                                                                                {metrics?.periods?.at(-1)?.rawSpend
+                                                                                    ? `$${metrics.periods.at(-1).rawSpend >= 1e6 ? `${(metrics.periods.at(-1).rawSales / 1e6).toFixed(2)}M` : metrics.periods.at(-1).rawSpend >= 1e3 ? `${(metrics.periods.at(-1).rawSpend / 1e3).toFixed(1)}K` : metrics.periods.at(-1).rawSpend.toFixed(0)}`
+                                                                                    : 'N/A'}
+                                                                            </td>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <td className={`${tdClass} text-center font-mono font-medium ${(metrics?.yoy?.units ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(metrics?.yoy?.units ?? 0) > 0 ? '+' : ''}{(metrics?.yoy?.units ?? 0).toFixed(1)}%</td>
+                                                                            <td className={`${tdClass} text-center font-mono font-medium ${(metrics?.yoy?.sales ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(metrics?.yoy?.sales ?? 0) > 0 ? '+' : ''}{(metrics?.yoy?.sales ?? 0).toFixed(1)}%</td>
+                                                                            <td className={`${tdClass} text-center font-mono font-medium ${(metrics?.yoy?.spend ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(metrics?.yoy?.spend ?? 0) > 0 ? '+' : ''}{(metrics?.yoy?.spend ?? 0).toFixed(1)}%</td>
+                                                                        </>
+                                                                    )}
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+
+                                                    {/* Overall Period */}
+                                                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                                                        <table className="w-full text-sm">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th colSpan="5" className="px-4 py-3 text-xs font-extrabold text-white bg-indigo-600 uppercase tracking-wider text-center shadow-inner">Overall period</th>
+                                                                </tr>
+                                                                <tr className="bg-slate-50">
+                                                                    <th className={thClass + " text-center"}>WMC Pen. (%)</th>
+                                                                    <th className={thClass + " text-center"}>Price</th>
+                                                                    <th className={thClass + " text-center"}>Unit Sales Online</th>
+                                                                    <th className={thClass + " text-center"}>GMV Sales Online</th>
+                                                                    <th className={thClass + " text-center"}>Brands in Final Stack</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr className="hover:bg-slate-50 transition-colors">
+                                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.wmcPen ?? 0).toFixed(2)}%`}</td>
+                                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `$${(metrics?.avgPrice ?? 0).toFixed(2)}`}</td>
+                                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.unitOnlinePct ?? 0).toFixed(1)}%`}</td>
+                                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.salesOnlinePct ?? 0).toFixed(1)}%`}</td>
+                                                                    <td className={tdClass + " text-center font-mono font-extrabold text-indigo-700 text-base"}>{isLoadingDiscovery ? <Sk w="w-8" /> : (discoveryData?.metadata?.num_brands || 0)}</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+
+                                                    {/* Metrics Summary */}
+                                                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                                                        <table className="w-full text-sm">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th colSpan="5" className="px-4 py-3 text-xs font-extrabold text-white bg-indigo-600 uppercase tracking-wider text-center shadow-inner">Key Metrics Summary</th>
+                                                                </tr>
+                                                                <tr className="bg-slate-50">
+                                                                    <th className={thClass}>Period</th>
+                                                                    <th className={thClass + " text-center"}>Unit Sales Online (%)</th>
+                                                                    <th className={thClass + " text-center"}>GMV Sales Online (%)</th>
+                                                                    <th className={thClass + " text-center"}>WMC Penetration(%)</th>
+                                                                    <th className={thClass + " text-center"}>Price</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {isLoadingDiscovery ? (
+                                                                    [0, 1, 2].map(i => (
+                                                                        <tr key={i} className="hover:bg-slate-50">
+                                                                            <td className={tdClassBold}><Sk w="w-32" /></td>
+                                                                            <td className={tdClass + " text-center"}><Sk /></td>
+                                                                            <td className={tdClass + " text-center"}><Sk /></td>
+                                                                            <td className={tdClass + " text-center"}><Sk /></td>
+                                                                            <td className={tdClass + " text-center"}><Sk /></td>
+                                                                        </tr>
+                                                                    ))
+                                                                ) : metrics?.periods.map((p, i) => (
+                                                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                                        <td className={tdClassBold}>{p.name}</td>
+                                                                        <td className={tdClass + " text-center font-mono"}>{p.unitOnlinePct.toFixed(1)}%</td>
+                                                                        <td className={tdClass + " text-center font-mono"}>{p.salesOnlinePct.toFixed(1)}%</td>
+                                                                        <td className={tdClass + " text-center font-mono"}>{p.wmcPen.toFixed(2)}%</td>
+                                                                        <td className={tdClass + " text-center font-mono"}>${p.price.toFixed(2)}</td>
+                                                                    </tr>
                                                                 ))}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-xs text-slate-500 italic">Mixed</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                                <tr className="bg-slate-50/80 hover:bg-slate-100 transition-colors">
+                                                                    <td className="px-4 py-3 text-xs font-extrabold text-slate-800 uppercase tracking-wider">Change YOY %</td>
+                                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.unitOnline ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.unitOnline ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.unitOnline ?? 0).toFixed(1)}%`}</td>
+                                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.salesOnline ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.salesOnline ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.salesOnline ?? 0).toFixed(1)}%`}</td>
+                                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.wmcPen ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.wmcPen ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.wmcPen ?? 0).toFixed(1)}%`}</td>
+                                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.price ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.price ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.price ?? 0).toFixed(1)}%`}</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        </div>
 
-                                    {/* YOY Change */}
-                                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th colSpan="3" className="px-4 py-3 text-xs font-extrabold text-white bg-indigo-600 uppercase tracking-wider text-center shadow-inner">
-                                                        <div className="flex items-center justify-center gap-3">
-                                                            <span>YOY Change</span>
-                                                            <div className="flex rounded-lg overflow-hidden border border-indigo-400 text-[10px] font-bold">
-                                                                <button
-                                                                    onClick={() => setYoyShowNumbers(false)}
-                                                                    className={`px-2 py-0.5 transition-colors ${!yoyShowNumbers ? 'bg-white text-indigo-700' : 'bg-indigo-500 text-white hover:bg-indigo-400'}`}
-                                                                >%</button>
-                                                                <button
-                                                                    onClick={() => setYoyShowNumbers(true)}
-                                                                    className={`px-2 py-0.5 transition-colors ${yoyShowNumbers ? 'bg-white text-indigo-700' : 'bg-indigo-500 text-white hover:bg-indigo-400'}`}
-                                                                >#</button>
-                                                            </div>
-                                                        </div>
-                                                    </th>
-                                                </tr>
-                                                <tr className="bg-slate-50">
-                                                    <th className={thClass + " text-center"}>{yoyShowNumbers ? 'Omni Unit Sales' : 'Omni Unit Sales'}</th>
-                                                    <th className={thClass + " text-center"}>Omni GMV ($)</th>
-                                                    <th className={thClass + " text-center"}>WMC Spends ($)</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr className="hover:bg-slate-50 transition-colors">
-                                                    {isLoadingDiscovery ? (
-                                                        <><td className={`${tdClass} text-center`}><Sk /></td><td className={`${tdClass} text-center`}><Sk /></td><td className={`${tdClass} text-center`}><Sk /></td></>
-                                                    ) : yoyShowNumbers ? (
-                                                        <>
-                                                            <td className={`${tdClass} text-center font-mono font-medium text-slate-700`}>
-                                                                {metrics?.periods?.at(-1)?.rawUnits
-                                                                    ? (metrics.periods.at(-1).rawUnits >= 1e6 ? `${(metrics.periods.at(-1).rawUnits / 1e6).toFixed(2)}M` : metrics.periods.at(-1).rawUnits >= 1e3 ? `${(metrics.periods.at(-1).rawUnits / 1e3).toFixed(1)}K` : metrics.periods.at(-1).rawUnits.toFixed(0))
-                                                                    : 'N/A'}
-                                                            </td>
-                                                            <td className={`${tdClass} text-center font-mono font-medium text-slate-700`}>
-                                                                {metrics?.periods?.at(-1)?.rawSales
-                                                                    ? `$${metrics.periods.at(-1).rawSales >= 1e6 ? `${(metrics.periods.at(-1).rawSales / 1e6).toFixed(2)}M` : metrics.periods.at(-1).rawSales >= 1e3 ? `${(metrics.periods.at(-1).rawSales / 1e3).toFixed(1)}K` : metrics.periods.at(-1).rawSales.toFixed(0)}`
-                                                                    : 'N/A'}
-                                                            </td>
-                                                            <td className={`${tdClass} text-center font-mono font-medium text-slate-700`}>
-                                                                {metrics?.periods?.at(-1)?.rawSpend
-                                                                    ? `$${metrics.periods.at(-1).rawSpend >= 1e6 ? `${(metrics.periods.at(-1).rawSpend / 1e6).toFixed(2)}M` : metrics.periods.at(-1).rawSpend >= 1e3 ? `${(metrics.periods.at(-1).rawSpend / 1e3).toFixed(1)}K` : metrics.periods.at(-1).rawSpend.toFixed(0)}`
-                                                                    : 'N/A'}
-                                                            </td>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <td className={`${tdClass} text-center font-mono font-medium ${(metrics?.yoy?.units ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(metrics?.yoy?.units ?? 0) > 0 ? '+' : ''}{(metrics?.yoy?.units ?? 0).toFixed(1)}%</td>
-                                                            <td className={`${tdClass} text-center font-mono font-medium ${(metrics?.yoy?.sales ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(metrics?.yoy?.sales ?? 0) > 0 ? '+' : ''}{(metrics?.yoy?.sales ?? 0).toFixed(1)}%</td>
-                                                            <td className={`${tdClass} text-center font-mono font-medium ${(metrics?.yoy?.spend ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(metrics?.yoy?.spend ?? 0) > 0 ? '+' : ''}{(metrics?.yoy?.spend ?? 0).toFixed(1)}%</td>
-                                                        </>
-                                                    )}
-                                                </tr>
-                                            </tbody>
-                                        </table>
+                                        <div className="mt-8">
+                                            <MediaTacticsTable metrics={isLoadingDiscovery ? null : metrics} isLoading={isLoadingDiscovery} />
+                                        </div>
                                     </div>
+                                )}
 
-                                    {/* Overall Period */}
-                                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th colSpan="5" className="px-4 py-3 text-xs font-extrabold text-white bg-indigo-600 uppercase tracking-wider text-center shadow-inner">Overall period</th>
-                                                </tr>
-                                                <tr className="bg-slate-50">
-                                                    <th className={thClass + " text-center"}>WMC Pen. (%)</th>
-                                                    <th className={thClass + " text-center"}>Price</th>
-                                                    <th className={thClass + " text-center"}>Unit Sales Online</th>
-                                                    <th className={thClass + " text-center"}>GMV Sales Online</th>
-                                                    <th className={thClass + " text-center"}>Brands in Final Stack</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr className="hover:bg-slate-50 transition-colors">
-                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.wmcPen ?? 0).toFixed(2)}%`}</td>
-                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `$${(metrics?.avgPrice ?? 0).toFixed(2)}`}</td>
-                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.unitOnlinePct ?? 0).toFixed(1)}%`}</td>
-                                                    <td className={tdClass + " text-center font-mono"}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.salesOnlinePct ?? 0).toFixed(1)}%`}</td>
-                                                    <td className={tdClass + " text-center font-mono font-extrabold text-indigo-700 text-base"}>{isLoadingDiscovery ? <Sk w="w-8" /> : (discoveryData?.metadata?.num_brands || 0)}</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                {activeTab === 'observations' && (
+                                    <AgentInsights
+                                        modelId={activeModelId}
+                                        insights={discoveryData?.metadata?.agent_insights || null}
+                                        anomaliesTable={discoveryData?.anomalies}
+                                        isLoading={isLoadingDiscovery}
+                                        tacticFilter={tacticFilter}
+                                        setTacticFilter={setTacticFilter}
+                                        severityFilter={severityFilter}
+                                        setSeverityFilter={setSeverityFilter}
+                                        availableTactics={['All', ...new Set(discoveryData?.anomalies?.map(a => a.Tactic_Prefix) || [])]}
+                                        availableSeverities={['All', 'Critical', 'High', 'Medium', 'Low']}
+                                    />
+                                )}
 
-                                    {/* Metrics Summary */}
-                                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th colSpan="5" className="px-4 py-3 text-xs font-extrabold text-white bg-indigo-600 uppercase tracking-wider text-center shadow-inner">Key Metrics Summary</th>
-                                                </tr>
-                                                <tr className="bg-slate-50">
-                                                    <th className={thClass}>Period</th>
-                                                    <th className={thClass + " text-center"}>Unit Sales Online (%)</th>
-                                                    <th className={thClass + " text-center"}>GMV Sales Online (%)</th>
-                                                    <th className={thClass + " text-center"}>WMC Penetration(%)</th>
-                                                    <th className={thClass + " text-center"}>Price</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {isLoadingDiscovery ? (
-                                                    [0, 1, 2].map(i => (
-                                                        <tr key={i} className="hover:bg-slate-50">
-                                                            <td className={tdClassBold}><Sk w="w-32" /></td>
-                                                            <td className={tdClass + " text-center"}><Sk /></td>
-                                                            <td className={tdClass + " text-center"}><Sk /></td>
-                                                            <td className={tdClass + " text-center"}><Sk /></td>
-                                                            <td className={tdClass + " text-center"}><Sk /></td>
-                                                        </tr>
-                                                    ))
-                                                ) : metrics?.periods.map((p, i) => (
-                                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                                        <td className={tdClassBold}>{p.name}</td>
-                                                        <td className={tdClass + " text-center font-mono"}>{p.unitOnlinePct.toFixed(1)}%</td>
-                                                        <td className={tdClass + " text-center font-mono"}>{p.salesOnlinePct.toFixed(1)}%</td>
-                                                        <td className={tdClass + " text-center font-mono"}>{p.wmcPen.toFixed(2)}%</td>
-                                                        <td className={tdClass + " text-center font-mono"}>${p.price.toFixed(2)}</td>
-                                                    </tr>
-                                                ))}
-                                                <tr className="bg-slate-50/80 hover:bg-slate-100 transition-colors">
-                                                    <td className="px-4 py-3 text-xs font-extrabold text-slate-800 uppercase tracking-wider">Change YOY %</td>
-                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.unitOnline ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.unitOnline ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.unitOnline ?? 0).toFixed(1)}%`}</td>
-                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.salesOnline ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.salesOnline ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.salesOnline ?? 0).toFixed(1)}%`}</td>
-                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.wmcPen ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.wmcPen ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.wmcPen ?? 0).toFixed(1)}%`}</td>
-                                                    <td className={`${tdClass} text-center font-mono font-semibold ${(metrics?.yoy?.price ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{isLoadingDiscovery ? <Sk /> : `${(metrics?.yoy?.price ?? 0) > 0 ? '+' : ''}${(metrics?.yoy?.price ?? 0).toFixed(1)}%`}</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                {activeTab === 'summary' && (
+                                    <SummarySheet summary={discoveryData?.summary || { part3: [] }} />
+                                )}
+
+                                {/* Action Bar */}
+                                <div className="flex justify-end pt-8 pb-8 border-t border-slate-100">
+                                    <button
+                                        onClick={() => navigate('/step/tool-review')}
+                                        className="group flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-lg shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 active:scale-95"
+                                    >
+                                        <span>Proceed to Tool Review</span>
+                                        <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                                    </button>
                                 </div>
                             </motion.div>
-                        </div>
-
-                        {/* Restore Tactics Table to Analysis Page */}
-                        <div className="mt-8">
-                            <MediaTacticsTable metrics={isLoadingDiscovery ? null : metrics} isLoading={isLoadingDiscovery} />
-                        </div>
-
-                        {/* Action Bar */}
-                        <div className="flex justify-end pt-8 pb-8">
-                            <button
-                                onClick={() => navigate('/step/tool-review')}
-                                className="group flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-lg shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 active:scale-95"
-                            >
-                                <span>Proceed to Tool Review</span>
-                                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                            </button>
-                        </div>
+                        </AnimatePresence>
 
                         <AutomationNote notes={step.automationNotes} />
                     </motion.div>

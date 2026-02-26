@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 from sqlalchemy.orm import Session
+from .models import SubcategoryRelevanceMapping, DiscoveryStack, DiscoveryStackData
 
 # Configuration paths from script
 PROJECT_RAW_DATA = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "data", "RAW_DATA"))
@@ -217,7 +218,7 @@ async def build_stack_process(db: Session, exclude_file_id: int, stack_type: str
     # Standardize column names for exclude flags
     flag_df.columns = [x.upper() for x in flag_df.columns]
     
-    from app.modules.governance.models import ModelFile
+    from app.modules.governance.models import ModelFile, Model
     from .models import SubcategoryRelevanceMapping
     
     # 1. First find the model_id from the exclude_file_id
@@ -358,12 +359,103 @@ async def build_stack_process(db: Session, exclude_file_id: int, stack_type: str
     # Instead of pulling holiday data to merge, just assign df_sum
     df_sum = df_sum_stack.copy()
     
-    # Save output to EDA output simulated location (can be added later to proper storage location)
-    project_eda_output = PROJECT_RAW_DATA.replace("RAW_DATA", "Stack Output")
+    # Fetch Model Name to use as directory
+    model = db.query(Model).filter(Model.model_id == model_id).first()
+    raw_project_name = model.model_name if model else f"model_{model_id}"
+    project_name = "".join([c if c.isalnum() or c in ("-", "_") else "_" for c in raw_project_name])
+    
+    # Save output to project-specific directory
+    project_eda_output = os.path.abspath(os.path.join(PROJECT_RAW_DATA, "..", project_name, "Stack Output"))
     os.makedirs(project_eda_output, exist_ok=True)
     
-    cleanbrand_agg.to_csv(os.path.join(project_eda_output, 'cleanbrand_agg.csv'), index=False)
-    df_sum.to_csv(os.path.join(project_eda_output, 'aggbrand_modelingstack.csv'), index=False)
+    # Extract L2 list before groupby drops it, and save as metadata
+    l2_list = []
+    num_brands = 0
+    if 'L2' in cleanbrand_agg.columns:
+        l2_list = sorted(cleanbrand_agg['L2'].dropna().astype(str).str.strip().unique().tolist())
+        l2_list = [x for x in l2_list if x and x.lower() not in ('nan', '', '0')]
+    
+    if 'UNIQUE_BRAND_NAME' in cleanbrand_agg.columns:
+        num_brands = int(cleanbrand_agg['UNIQUE_BRAND_NAME'].nunique())
+    
+    # Metadata is now stored in the DiscoveryStack record
+    metadata_json = json.dumps({
+        "l2_list": l2_list, 
+        "num_brands": num_brands,
+        "model_id": model_id, 
+        "model_name": raw_project_name
+    })
+    
+    # 4. Persist to DB for Discovery & Tool Review (New)
+    print(f"[STACK] Persisting stack data to database for model {model_id}...")
+    try:
+        # Delete old discovery stacks for this model
+        db.query(DiscoveryStack).filter(DiscoveryStack.model_id == model_id).delete()
+        
+        # A. Modeling Stack (Aggregated)
+        stack_modeling = DiscoveryStack(
+            model_id=model_id, 
+            stack_type='modeling_stack',
+            stack_metadata=metadata_json
+        )
+        db.add(stack_modeling)
+        db.flush()
+        
+        # Batch insert row data for efficiency
+        sum_rows = df_sum.to_dict(orient='records')
+        batch_size = 500
+        for i in range(0, len(sum_rows), batch_size):
+            batch = sum_rows[i:i + batch_size]
+            db.bulk_insert_mappings(DiscoveryStackData, [
+                {
+                    "stack_id": stack_modeling.stack_id, 
+                    "row_data": json.dumps({
+                        k: (v.strftime('%Y-%m-%d') if hasattr(v, 'strftime') else v) 
+                        for k, v in row.items()
+                    })
+                } for row in batch
+            ])
+            
+        # B. Brand Aggregation (Full Detail)
+        stack_brand = DiscoveryStack(
+            model_id=model_id, 
+            stack_type='brand_agg',
+            stack_metadata=metadata_json
+        )
+        db.add(stack_brand)
+        db.flush()
+        
+        # We limit brand rows to keep DB size manageable, or just store all. 
+        # User wants to remove files, so we store all.
+        brand_rows = cleanbrand_agg.to_dict(orient='records')
+        for i in range(0, len(brand_rows), batch_size):
+            batch = brand_rows[i:i + batch_size]
+            db.bulk_insert_mappings(DiscoveryStackData, [
+                {
+                    "stack_id": stack_brand.stack_id, 
+                    "row_data": json.dumps({
+                        k: (v.strftime('%Y-%m-%d') if hasattr(v, 'strftime') else v) 
+                        for k, v in row.items()
+                    })
+                } for row in batch
+            ])
+            
+        db.commit()
+        print(f"[STACK] Successfully persisted {len(sum_rows)} summary rows and {len(brand_rows)} brand rows for model {model_id}.")
+        
+        # Trigger DB-backed Pre-Calculation of Discovery Analysis
+        try:
+            from .discovery import get_discovery_data
+            print(f"[STACK] Triggering discovery pre-calculation for model {model_id}...")
+            get_discovery_data(db, model_id, force_refresh=True)
+            print(f"[STACK] Discovery pre-calculation complete for model {model_id}")
+        except Exception as e:
+            print(f"[WARNING] Failed to pre-calculate discovery analysis: {e}")
+            import traceback
+            traceback.print_exc()
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Failed to persist stack data to database: {e}")
     
     # QA Metrics
     flag_df_include = setup['flag_df_include']

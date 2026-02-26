@@ -105,3 +105,33 @@ class AnalyticalResult(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (UniqueConstraint('file_id', 'result_type', name='_file_result_uc'),)
+
+# ==========================================================
+# DISCOVERY STACKS (DB STORE)
+# ==========================================================
+class DiscoveryStack(Base):
+    __tablename__ = "discovery_stacks"
+    stack_id = Column(Integer, primary_key=True)
+    model_id = Column(Integer, ForeignKey("models.model_id"), nullable=False, index=True)
+    stack_type = Column(String(100))  # e.g., 'modeling_stack', 'brand_agg'
+    stack_metadata = Column(String(2000))   # JSON string for extra info (subcategories, etc.)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    data = relationship("DiscoveryStackData", back_populates="stack", cascade="all, delete-orphan")
+    model = relationship("Model", back_populates="discovery_stacks")
+
+class DiscoveryStackData(Base):
+    __tablename__ = "discovery_stack_data"
+    data_id = Column(Integer, primary_key=True)
+    stack_id = Column(Integer, ForeignKey("discovery_stacks.stack_id"), nullable=False, index=True)
+    row_data = Column(String(1000000))  # JSON string containing the row metrics
+
+    stack = relationship("DiscoveryStack", back_populates="data")
+
+class DiscoveryAnalysisCache(Base):
+    __tablename__ = "discovery_analysis_cache"
+    cache_id = Column(Integer, primary_key=True)
+    model_id = Column(Integer, ForeignKey("models.model_id"), nullable=False, index=True)
+    analysis_data = Column(String(1000000)) # Final discovery JSON
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
