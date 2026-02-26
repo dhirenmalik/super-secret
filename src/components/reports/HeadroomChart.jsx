@@ -14,8 +14,8 @@ const data = [
     { name: 'Onsite Display APP Homepage Lockout', headroom: 65.9 },
     { name: 'Onsite Display Homepage Gallery Takeover', headroom: 86.6 },
     { name: 'Offsite Display Facebook', headroom: 95.7 },
-    { name: 'Offsite Walmart Network - Preroll & Display', headroom: 1.4 },
-    { name: 'Offsite Display Walmart DSP CTV (video)', headroom: 2.8 },
+    { name: 'Offsite Enterprise Network - Preroll & Display', headroom: 1.4 },
+    { name: 'Offsite Display Enterprise DSP CTV (video)', headroom: 2.8 },
     { name: 'Instore TV Wall', headroom: 199.6 }
 ];
 

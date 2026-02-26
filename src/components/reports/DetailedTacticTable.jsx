@@ -34,8 +34,8 @@ const data = [
     { name: 'Onsite Display Homepage Gallery Takeover', contri: 1.7, spend: 2.5, iroas: 2.3, eff: 8.3 },
     { name: 'Offsite Display Total', contri: 42.4, spend: 34.4, iroas: 4.2, eff: 39.3, isHeader: true },
     { name: 'Offsite Display Facebook', contri: 0.2, spend: 0.5, iroas: 1.1, eff: 4.4 },
-    { name: 'Offsite Walmart Network - Preroll & Display', contri: 12.1, spend: 10.6, iroas: 3.9, eff: 14.5 },
-    { name: 'Offsite Display Walmart DSP CTV', contri: 30.1, spend: 23.3, iroas: 4.4, eff: 145.7 },
+    { name: 'Offsite Enterprise Network - Preroll & Display', contri: 12.1, spend: 10.6, iroas: 3.9, eff: 14.5 },
+    { name: 'Offsite Display Enterprise DSP CTV', contri: 30.1, spend: 23.3, iroas: 4.4, eff: 145.7 },
     { name: 'Instore TV Wall', contri: 1.4, spend: 4.7, iroas: 1.0, eff: 0.7, isHeader: true }
 ];
 

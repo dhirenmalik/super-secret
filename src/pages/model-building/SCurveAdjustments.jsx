@@ -14,7 +14,7 @@ export default function SCurveAdjustments() {
         },
         {
             name: 'M_OFF_DIS_DSP_CTV_IMP',
-            displayName: 'Offsite Display Walmart DSP CTV',
+            displayName: 'Offsite Display Enterprise DSP CTV',
             timeSeries: { base: 100000, noise: 200000, spikes: [{ start: 80, end: 85, magnitude: 2000000 }] },
             bounds: { thres: 300000, sat: 1500000, inf: 800000 },
             curve: { alpha: 4.2, gamma: 300000, maxVal: 2000000, maxVC: 200000000, metrics: { thres: [300000, 30000000], inf: [800000, 80000000], avg: [600000, 60000000], sat: [1500000, 160000000] } }

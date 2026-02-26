@@ -5,7 +5,19 @@ export default {
         "./src/**/*.{js,ts,jsx,tsx}",
     ],
     theme: {
-        extend: {},
+        extend: {
+            colors: {
+                primary: 'var(--color-primary)',
+                'primary-dark': 'var(--color-primary-dark)',
+                'primary-light': 'var(--color-primary-light)',
+                secondary: 'var(--color-secondary)',
+                surface: 'var(--color-surface)',
+                card: 'var(--color-card)',
+            },
+            boxShadow: {
+                'glow': 'var(--shadow-glow)',
+            }
+        },
     },
     plugins: [],
 }

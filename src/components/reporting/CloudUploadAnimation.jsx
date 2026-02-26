@@ -93,10 +93,10 @@ export default function CloudUploadAnimation({ onComplete }) {
             <h4 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '8px' }}>
                 {status === 'idle' && 'Ready to Secure'}
                 {status === 'uploading' && 'Syncing Deliverables...'}
-                {status === 'success' && 'Secured in Walmart Cloud'}
+                {status === 'success' && 'Secured in Enterprise Cloud'}
             </h4>
             <p style={{ color: '#64748b', fontSize: '14px', maxWidth: '300px', margin: '0 auto 24px' }}>
-                {status === 'idle' && 'Upload final documentation pack to the Walmart Cloud repository.'}
+                {status === 'idle' && 'Upload final documentation pack to the Enterprise Cloud repository.'}
                 {status === 'uploading' && 'Encrypting and transferring 4 core assets to the Category storage.'}
                 {status === 'success' && 'All documents successfully stored and versioned at FY26_V1.0.'}
             </p>

@@ -73,7 +73,7 @@ export default function ModelValidationMedia() {
         { name: 'Onsite Display Audience Targeting', contri: 14.0, spend: 16.2, iroas: 3.06 },
         { name: 'Onsite Display Contextual Targeting', contri: 7.3, spend: 14.5, iroas: 1.78 },
         { name: 'Offsite Display Total', contri: 22.8, spend: 22.2, iroas: 3.64, isHeader: true },
-        { name: 'Offsite Walmart Network', contri: 11.0, spend: 11.3, iroas: 3.44 },
+        { name: 'Offsite Enterprise Network', contri: 11.0, spend: 11.3, iroas: 3.44 },
         { name: 'Instore TV Wall', contri: 15.9, spend: 10.9, iroas: 5.14, isHeader: true }
     ];
 

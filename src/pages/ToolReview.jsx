@@ -1,11 +1,12 @@
+import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import TaskList from '../components/TaskList';
 import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
-import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getApiBaseUrl } from '../api/kickoff';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const step = steps.find((s) => s.slug === 'tool-review');
 
@@ -53,7 +54,12 @@ export default function ToolReview() {
     };
 
     return (
-        <div>
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col h-full bg-slate-50/30 pb-12"
+        >
             <PageHeader
                 title={step.name}
                 subtitle="Customise tactics — merge, remove, adjust capping, and rectify irregular trends at tactic level."
@@ -64,126 +70,144 @@ export default function ToolReview() {
                 <StatusBadge status="not_started" />
             </PageHeader>
 
-            <div className="grid-2">
-                {/* Tasks */}
-                <div className="card">
-                    <div className="card-header">
-                        <div className="card-title">
-                            <div className="card-title-icon blue">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="px-6 mt-6 space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Tasks */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.1 }}
+                        className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col"
+                    >
+                        <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3 bg-white">
+                            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm border border-indigo-100">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M9 11l3 3L22 4" />
                                     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                                 </svg>
                             </div>
-                            Tasks
+                            <h3 className="text-lg font-bold text-indigo-900 m-0 leading-none tracking-tight">Tasks</h3>
                         </div>
-                    </div>
-                    <TaskList tasks={step.tasks} />
-                </div>
+                        <div className="flex-1 bg-slate-50/50">
+                            <TaskList tasks={step.tasks} />
+                        </div>
+                    </motion.div>
 
-                {/* Merge/Remove Controls */}
-                <div className="card">
-                    <div className="card-header">
-                        <div className="card-title">
-                            <div className="card-title-icon green">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {/* Merge/Remove Controls */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.2 }}
+                        className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col"
+                    >
+                        <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3 bg-white">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-100">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <circle cx="12" cy="12" r="3" />
                                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                                 </svg>
                             </div>
-                            Tactic Controls
+                            <h3 className="text-lg font-bold text-emerald-900 m-0 leading-none tracking-tight">Tactic Controls</h3>
                         </div>
-                    </div>
-                    {/* Model Selector */}
-                    <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-4 bg-slate-50">
-                        <span className="text-sm font-medium text-slate-700">Active Model:</span>
-                        <div className="w-64">
-                            <select
-                                className="w-full px-3 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
-                                value={activeModelId}
-                                onChange={(e) => {
-                                    setActiveModelId(e.target.value);
-                                    localStorage.setItem('active_model_id', e.target.value);
-                                }}
-                                disabled={isLoadingModels}
-                            >
-                                <option value="">-- Select Model --</option>
-                                {models.map(m => (
-                                    <option key={m.model_id} value={m.model_id}>{m.model_name}</option>
-                                ))}
-                            </select>
+                        {/* Model Selector */}
+                        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
+                            <span className="text-sm font-bold text-slate-700">Active Model:</span>
+                            <div className="w-full">
+                                <select
+                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-semibold text-slate-700 shadow-sm bg-white cursor-pointer transition-all outline-none"
+                                    value={activeModelId}
+                                    onChange={(e) => {
+                                        setActiveModelId(e.target.value);
+                                        localStorage.setItem('active_model_id', e.target.value);
+                                    }}
+                                    disabled={isLoadingModels}
+                                >
+                                    <option value="">-- Select Model --</option>
+                                    {models.map(m => (
+                                        <option key={m.model_id} value={m.model_id}>{m.model_name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Action</label>
-                        <select className="form-input form-select">
-                            <option value="">Select action...</option>
-                            <option value="merge">Merge Tactics</option>
-                            <option value="remove">Remove Tactic</option>
-                            <option value="adjust">Adjust Data</option>
-                        </select>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Select Tactics</label>
-                        <select className="form-input form-select" multiple style={{ minHeight: '120px' }}>
-                            {tactics.map((t) => (
-                                <option key={t.id} value={t.id}>{t.name} ({t.type})</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button className="btn btn-primary btn-sm">Apply</button>
-                        <button className="btn btn-secondary btn-sm">Reset</button>
-                    </div>
+                        <div className="p-6 space-y-5 flex-1 bg-white">
+                            <div className="space-y-2">
+                                <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-widest pl-1">Action</label>
+                                <select className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-slate-700 shadow-sm outline-none bg-slate-50">
+                                    <option value="">Select action...</option>
+                                    <option value="merge">Merge Tactics</option>
+                                    <option value="remove">Remove Tactic</option>
+                                    <option value="adjust">Adjust Data</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-widest pl-1">Select Tactics</label>
+                                <select className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-slate-700 shadow-sm outline-none bg-slate-50" multiple style={{ minHeight: '130px' }}>
+                                    {tactics.map((t) => (
+                                        <option key={t.id} value={t.id} className="py-1">{t.name} ({t.type})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 shadow-md shadow-indigo-200/50 hover:-translate-y-0.5 transition-all outline-none">Apply</button>
+                                <button className="px-5 py-2.5 rounded-xl bg-white border-2 border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 hover:border-slate-300 hover:text-slate-800 transition-all outline-none">Reset</button>
+                            </div>
+                        </div>
+                    </motion.div>
                 </div>
-            </div>
 
-            {/* Capping Sliders */}
-            <div className="card" style={{ marginTop: '20px' }}>
-                <div className="card-header">
-                    <div className="card-title">
-                        <div className="card-title-icon yellow">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M12 20v-6M6 20V10M18 20V4" />
-                            </svg>
+                {/* Capping Sliders */}
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 }}
+                    className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+                >
+                    <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shadow-sm border border-amber-100">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 20v-6M6 20V10M18 20V4" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-amber-900 m-0 leading-none tracking-tight">Variable Peak Capping</h3>
                         </div>
-                        Variable Peak Capping
+                        <button className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors">Reset All to 100%</button>
                     </div>
-                    <button className="btn btn-secondary btn-sm">Reset All to 100%</button>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-                    {tactics.map((tactic) => (
-                        <div key={tactic.id} style={{ padding: '16px', background: 'var(--color-surface)', borderRadius: 'var(--radius-md)' }}>
-                            <div className="slider-container">
-                                <div className="slider-label">
-                                    <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{tactic.name}</span>
-                                    <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{tactic.cappingValue}%</span>
+                    <div className="p-6 bg-slate-50/50 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {tactics.map((tactic) => (
+                            <div key={tactic.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className="font-bold text-slate-800 text-sm tracking-tight">{tactic.name}</span>
+                                    <span className="font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md text-sm">{tactic.cappingValue}%</span>
                                 </div>
                                 <input
                                     type="range"
-                                    className="slider-input"
+                                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                     min="0"
                                     max="200"
                                     value={tactic.cappingValue}
                                     onChange={(e) => updateCapping(tactic.id, parseInt(e.target.value))}
                                 />
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-light)' }}>
-                                    <span>0%</span>
-                                    <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>{tactic.type}</span>
-                                    <span>200%</span>
+                                <div className="flex justify-between items-center mt-3 text-xs font-semibold">
+                                    <span className="text-slate-400">0%</span>
+                                    <span className="text-slate-500 uppercase tracking-wider">{tactic.type}</span>
+                                    <span className="text-slate-400">200%</span>
                                 </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
+                        ))}
+                    </div>
+                </motion.div>
 
-            {/* Manual Calculations */}
-            <div className="card" style={{ marginTop: '20px' }}>
-                <div className="card-header">
-                    <div className="card-title">
-                        <div className="card-title-icon red">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {/* Manual Calculations */}
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.4 }}
+                    className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+                >
+                    <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3 bg-white">
+                        <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shadow-sm border border-rose-100">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <rect x="4" y="2" width="16" height="20" rx="2" />
                                 <line x1="8" y1="6" x2="16" y2="6" />
                                 <line x1="16" y1="14" x2="16" y2="18" />
@@ -196,23 +220,37 @@ export default function ToolReview() {
                                 <line x1="12" y1="18" x2="12" y2="18.01" />
                             </svg>
                         </div>
-                        Manual Data Adjustments
+                        <h3 className="text-lg font-bold text-rose-900 m-0 leading-none tracking-tight">Manual Data Adjustments</h3>
                     </div>
-                </div>
-                <div className="form-group">
-                    <label className="form-label">Adjustment Description</label>
-                    <textarea className="form-input form-textarea" placeholder="Describe the data discrepancy and the manual adjustments made..." />
-                </div>
-                <div className="form-group">
-                    <label className="form-label">Adjustment Formula</label>
-                    <input className="form-input" placeholder="e.g. Variable_X = Variable_X * 0.85 for weeks 23-26" style={{ fontFamily: 'monospace' }} />
-                </div>
-                <button className="btn btn-primary btn-sm">Apply Adjustment</button>
-            </div>
+                    <div className="p-6 space-y-5 bg-white">
+                        <div className="space-y-2">
+                            <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-widest pl-1">Adjustment Description</label>
+                            <textarea
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 text-sm font-medium text-slate-800 shadow-sm outline-none bg-slate-50 min-h-[100px]"
+                                placeholder="Describe the data discrepancy and the manual adjustments made..."
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-widest pl-1">Adjustment Formula</label>
+                            <input
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 text-sm text-slate-800 shadow-sm outline-none bg-slate-50 font-mono font-medium placeholder-slate-400"
+                                placeholder="e.g. Variable_X = Variable_X * 0.85 for weeks 23-26"
+                            />
+                        </div>
+                        <div className="pt-2">
+                            <button className="px-6 py-3 rounded-xl bg-slate-800 text-white font-bold text-sm hover:bg-slate-900 shadow-lg shadow-slate-200/50 hover:-translate-y-0.5 transition-all outline-none">Apply Adjustment</button>
+                        </div>
+                    </div>
+                </motion.div>
 
-            <div style={{ marginTop: '20px' }}>
-                <AutomationNote notes={step.automationNotes} />
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.4, delay: 0.5 }}
+                >
+                    <AutomationNote notes={step.automationNotes} />
+                </motion.div>
             </div>
-        </div>
+        </motion.div>
     );
 }

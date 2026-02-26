@@ -118,7 +118,7 @@ export default function GMVChart() {
 
             <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '20px', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#94a3b8' }}>
                 <div>PROPRIETARY & CONFIDENTIAL</div>
-                <div>Source: Walmart Omnichannel Sales, Dec 2022 - Jul 2025</div>
+                <div>Source: Enterprise Omnichannel Sales, Dec 2022 - Jul 2025</div>
             </div>
         </div>
     );

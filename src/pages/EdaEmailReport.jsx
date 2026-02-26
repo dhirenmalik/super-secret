@@ -221,7 +221,7 @@ export default function EdaEmailReport() {
                     <div style={{ padding: '20px', background: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-light)' }}>
                         <div style={{ fontWeight: 700, marginBottom: '4px', color: 'var(--color-text)' }}>Subject: EDA Report – [Category] – WMC Analysis</div>
                         <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
-                            To: walmart-analytics@example.com
+                            To: enterprise-analytics@example.com
                         </div>
                         <div style={{ fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.7 }}>
                             <p>Hi Team,</p>

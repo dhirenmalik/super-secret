@@ -10,7 +10,7 @@ const steps = [
         phase: 'ETL',
         allowedRoles: ['admin', 'modeler'],
         tasks: [
-            'Login to VDI (Walmart cloud)',
+            'Login to VDI (Enterprise cloud)',
             'Run queries specific to category',
             'Data download',
         ],
@@ -76,7 +76,7 @@ const steps = [
         automationNotes: [
             'Model groupings can be excluded/combined',
             'Discussions on L2/L3s (sub-categories) to shift internally',
-            'Dependency on Walmart to finalise model groups & sub-categories under each model group during review meetings',
+            'Dependency on Enterprise to finalise model groups & sub-categories under each model group during review meetings',
         ],
     },
     {
@@ -126,7 +126,7 @@ const steps = [
         ],
         automationNotes: [
             'Confirmation on brands to be considered, combined or excluded for relevant sales & spends coverage',
-            'Dependency on Walmart to finalise brands to be included in modeling',
+            'Dependency on Enterprise to finalise brands to be included in modeling',
         ],
     },
     {
@@ -167,7 +167,7 @@ const steps = [
             'Capping of any peak in any particular variable',
         ],
         automationNotes: [
-            'Dependency on Walmart to make calculations to rectify irregular trends at tactic level',
+            'Dependency on Enterprise to make calculations to rectify irregular trends at tactic level',
         ],
     },
     {
@@ -455,7 +455,7 @@ const steps = [
             'The documents include – final stack, optimization results, raw vs transformed tactic impressions & spend charts, coefficient summary, model stats, media contribution, etc',
             'Process Flow & Key Decisions',
             'Variable & dummies description file',
-            'Document upload on Walmart cloud',
+            'Document upload on Enterprise cloud',
         ],
         automationNotes: [],
     },

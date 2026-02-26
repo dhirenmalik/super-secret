@@ -4,21 +4,21 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════
-   Walmart ETL & EDA — Global Design System
+   Enterprise ETL & EDA — Global Design System
    ═══════════════════════════════════════════════════════ */
 
 /* ─── CSS Custom Properties ─────────────────────────── */
 :root {
   /* Curated Premium Colors */
-  --color-primary: #0060d1;
-  /* Deep vibrant blue */
-  --color-primary-dark: #004baf;
-  --color-primary-darker: #003078;
-  --color-primary-light: #e8f2fc;
-  --color-primary-glow: rgba(0, 96, 209, 0.2);
+  --color-primary: #4f46e5;
+  /* Indigo 600 */
+  --color-primary-dark: #3730a3;
+  --color-primary-darker: #312e81;
+  --color-primary-light: #eef2ff;
+  --color-primary-glow: rgba(79, 70, 229, 0.2);
 
-  --color-secondary: #FFC220;
-  --color-secondary-light: #FFF8E6;
+  --color-secondary: #0ea5e9;
+  --color-secondary-light: #e0f2fe;
 
   /* Sophisticated Neutrals */
   --color-surface: #f8fafc;
@@ -52,10 +52,10 @@
   /* Slate 100 */
 
   /* Sidebar */
-  --color-sidebar-bg: #0b1120;
+  --color-sidebar-bg: #0f172a;
   /* Deep slate 950 */
   --color-sidebar-text: #94a3b8;
-  --color-sidebar-active: #38bdf8;
+  --color-sidebar-active: #818cf8;
   /* Sky 400 */
 
   /* Modern Layered Shadows */
@@ -156,7 +156,7 @@ button {
   left: 0;
   width: var(--sidebar-width);
   height: 100vh;
-  background: linear-gradient(180deg, #001F3F 0%, #00152B 100%);
+  background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
   color: var(--color-sidebar-text);
   display: flex;
   flex-direction: column;
@@ -239,7 +239,7 @@ button {
 .sidebar-logo-icon {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, var(--color-primary), #0091FF);
+  background: linear-gradient(135deg, var(--color-primary), #6366f1);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
@@ -312,7 +312,7 @@ button {
 }
 
 .sidebar-nav-item.active {
-  background: linear-gradient(135deg, rgba(0, 113, 220, 0.2), rgba(0, 113, 220, 0.1));
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(79, 70, 229, 0.1));
   color: #FFFFFF;
   font-weight: 600;
 }
@@ -738,7 +738,7 @@ button {
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary), #0091FF);
+  background: linear-gradient(90deg, var(--color-primary), #6366f1);
   border-radius: var(--radius-full);
   transition: width var(--transition-slow);
   position: relative;

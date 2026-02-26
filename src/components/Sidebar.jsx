@@ -37,7 +37,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                         <div className="sidebar-logo-icon">W</div>
                         {!isCollapsed && (
                             <div className="sidebar-logo-text">
-                                <span className="sidebar-logo-title">Walmart</span>
+                                <span className="sidebar-logo-title">Enterprise</span>
                                 <span className="sidebar-logo-subtitle">Process Management</span>
                             </div>
                         )}
@@ -176,7 +176,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                             </button>
                         </div>
                     )}
-                    <p className="sidebar-footer-text" style={{ padding: '0 24px', opacity: 0.5 }}>{isCollapsed ? "v1.0" : "Walmart Process Guide v1.0"}</p>
+                    <p className="sidebar-footer-text" style={{ padding: '0 24px', opacity: 0.5 }}>{isCollapsed ? "v1.0" : "Enterprise Process Guide v1.0"}</p>
                 </div>
             </aside>
         </>
