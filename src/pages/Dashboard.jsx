@@ -56,8 +56,38 @@ export default function Dashboard() {
             // Load pending items for reviewers
             if (user && (user.role === 'reviewer' || user.role === 'admin')) {
                 const files = await fetchFiles(true, token);
-                const pending = files.filter(f => ['pending', 'in_review', 'approved', 'rejected'].includes(f.status));
-                setPendingItems(pending);
+                const pendingFiles = files.filter(f => ['pending', 'in_review', 'approved', 'rejected'].includes(f.status));
+
+                // Fetch models to check for EDA stage reviews
+                const modelsResponse = await fetch(`${getApiBaseUrl()}/api/v1/models`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const allModels = await modelsResponse.json();
+
+                const pendingModelTasks = [];
+                allModels.forEach(model => {
+                    const stages = [
+                        { key: 'brand_status', label: 'Brand Stacks Review', route: '/step/brand-stacks-review' },
+                        { key: 'discovery_status', label: 'Discovery Tool Review', route: '/step/discovery-tool-review' },
+                        { key: 'eda_email_status', label: 'EDA Email Review', route: '/step/eda-email-review' }
+                    ];
+
+                    stages.forEach(stage => {
+                        if (model[stage.key] === 'in_review') {
+                            pendingModelTasks.push({
+                                id: `${model.model_id}_${stage.key}`,
+                                model_id: model.model_id,
+                                filename: model.model_name,
+                                category: stage.label,
+                                status: 'in_review',
+                                upload_date: model.created_at,
+                                customRoute: stage.route
+                            });
+                        }
+                    });
+                });
+
+                setPendingItems([...pendingFiles, ...pendingModelTasks]);
             }
 
             // Fetch Kickoff Report Status
@@ -172,8 +202,8 @@ export default function Dashboard() {
                             {pendingItems.map((item) => {
                                 const category = item.category || item.file_category;
                                 const isExcludeFlag = category === 'exclude_flags_raw';
-                                const targetRoute = isExcludeFlag ? '/step/exclude-flag-review' : '/step/kickoff-report-review';
-                                const titlePrefix = isExcludeFlag ? 'Exclude Flag Review' : 'Kickoff Report';
+                                const targetRoute = item.customRoute || (isExcludeFlag ? '/step/exclude-flag-review' : '/step/kickoff-report-review');
+                                const titlePrefix = item.customRoute ? category : (isExcludeFlag ? 'Exclude Flag Review' : 'Kickoff Report');
 
                                 let badgeClass = "bg-sky-100 text-sky-700";
                                 let badgeText = "Pending Review";
@@ -305,10 +335,59 @@ export default function Dashboard() {
                                                             <line x1="12" y1="22.08" x2="12" y2="12"></line>
                                                         </svg>
                                                     </div>
-                                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${model.status === 'draft' ? 'bg-slate-100 text-slate-600' : 'bg-emerald-100 text-emerald-700'}`}>
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${model.status === 'draft' ? 'bg-slate-400' : 'bg-emerald-500'}`}></span>
-                                                        {model.status}
-                                                    </span>
+                                                    {(() => {
+                                                        const getActiveStageInfo = (model) => {
+                                                            if (model.eda_email_status === 'in_progress' || model.eda_email_status === 'in_review' || model.eda_email_status === 'rejected') {
+                                                                return { name: 'Email Report', status: model.eda_email_status };
+                                                            }
+                                                            if (model.discovery_status === 'in_progress' || model.discovery_status === 'in_review' || model.discovery_status === 'rejected') {
+                                                                return { name: 'Discovery Tool', status: model.discovery_status };
+                                                            }
+                                                            if (model.brand_status === 'in_progress' || model.brand_status === 'in_review' || model.brand_status === 'rejected') {
+                                                                return { name: 'Brand Stacks', status: model.brand_status };
+                                                            }
+                                                            if (model.exclude_status === 'in_progress' || model.exclude_status === 'in_review' || model.exclude_status === 'rejected') {
+                                                                return { name: 'Exclude Flag', status: model.exclude_status };
+                                                            }
+                                                            if (model.eda_email_status === 'approved') {
+                                                                return { name: 'Completed', status: 'completed' }
+                                                            }
+                                                            return { name: 'Exclude Flag', status: model.exclude_status || 'not_started' };
+                                                        };
+
+                                                        const stageInfo = getActiveStageInfo(model);
+
+                                                        let badgeClass = 'bg-slate-100 text-slate-600';
+                                                        let dotClass = 'bg-slate-400';
+                                                        let label = stageInfo.status;
+
+                                                        if (stageInfo.status === 'approved' || stageInfo.status === 'completed') {
+                                                            badgeClass = 'bg-emerald-100 text-emerald-700';
+                                                            dotClass = 'bg-emerald-500';
+                                                            label = 'APPROVED';
+                                                        } else if (stageInfo.status === 'in_review') {
+                                                            badgeClass = 'bg-amber-100 text-amber-700';
+                                                            dotClass = 'bg-amber-500 animate-pulse';
+                                                            label = 'UNDER REVIEW';
+                                                        } else if (stageInfo.status === 'rejected') {
+                                                            badgeClass = 'bg-rose-100 text-rose-700';
+                                                            dotClass = 'bg-rose-500';
+                                                            label = 'REJECTED';
+                                                        } else if (stageInfo.status === 'in_progress') {
+                                                            badgeClass = 'bg-blue-100 text-blue-700';
+                                                            dotClass = 'bg-blue-500 animate-pulse';
+                                                            label = 'IN PROGRESS';
+                                                        } else {
+                                                            label = 'DRAFT';
+                                                        }
+
+                                                        return (
+                                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${badgeClass}`}>
+                                                                <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`}></span>
+                                                                {stageInfo.name} - {label}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </div>
                                                 <h3 className="text-lg font-bold text-slate-800 mb-2 leading-tight">{model.model_name}</h3>
                                                 <div className="flex flex-wrap gap-2 mb-4">

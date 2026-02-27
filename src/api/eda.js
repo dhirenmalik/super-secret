@@ -101,3 +101,20 @@ export const fetchBuiltStack = async (fileId, stackType = 'brand', token = null)
     return response.json();
 };
 
+export const updateStageStatus = async (modelId, stage, status, token = null) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/models/${modelId}/stage-status`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ stage, status }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Failed to update ${stage} status`);
+    }
+    return response.json();
+};
+

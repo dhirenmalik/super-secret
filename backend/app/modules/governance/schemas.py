@@ -65,6 +65,10 @@ class ModelCreate(ModelBase):
 class Model(ModelBase):
     model_id: int
     status: str
+    exclude_status: str
+    brand_status: str
+    discovery_status: str
+    eda_email_status: str
     current_stage_id: Optional[int]
     created_at: datetime
     created_by: int

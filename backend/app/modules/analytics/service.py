@@ -852,12 +852,19 @@ def save_chart_selection_data(db: Session, file_id: str, l2_values: List[str]):
     }
 
 def update_report_status_data(db: Session, file_id: str, status: str):
-    from app.modules.governance.models import ModelFile
+    from app.modules.governance.models import ModelFile, Model
     file = db.query(ModelFile).filter(ModelFile.file_id == file_id).first()
     if not file:
         raise ValueError("File not found")
     
     file.status = status
+    
+    # Sync status to parent model if applicable
+    if file.model_id:
+        parent_model = db.query(Model).filter(Model.model_id == file.model_id).first()
+        if parent_model:
+            parent_model.status = status
+
     db.commit()
     db.refresh(file)
     return {"file_id": str(file_id), "status": file.status}

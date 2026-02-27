@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+
 
 // ─── Tactic Config ────────────────────────────────────────────────────────────
 // Canonical source of truth: prefix → display name + group
@@ -111,8 +113,9 @@ const Sk = ({ w = 'w-16', h = 'h-3.5' }) => (
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function MediaTacticsTable({ metrics, isLoading = false, oadRows: backendOadRows }) {
-    const [showOad, setShowOad] = useState(false);
     const [yoyShowNumbers, setYoyShowNumbers] = useState(false);
+    const [isMediaTacticsCollapsed, setIsMediaTacticsCollapsed] = useState(false);
+    const [isOadCollapsed, setIsOadCollapsed] = useState(false);
 
     // Build a lookup: internal name → tactic data from metrics
     const tacticLookup = useMemo(() => {
@@ -197,142 +200,151 @@ export default function MediaTacticsTable({ metrics, isLoading = false, oadRows:
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between px-1">
-                <h2 className="text-sm font-extrabold text-slate-700 uppercase tracking-wider">Key Metrics · Media Tactics</h2>
-                <button
-                    onClick={() => setShowOad(v => !v)}
-                    className={`px-3 py-1 text-[11px] font-bold rounded-lg border transition-all ${showOad ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-500'}`}
-                >
-                    {showOad ? 'Hide OAD' : 'Show OAD Table'}
-                </button>
+            <div
+                className="flex items-center gap-2 px-1 cursor-pointer select-none group"
+                onClick={() => setIsMediaTacticsCollapsed(!isMediaTacticsCollapsed)}
+            >
+                {isMediaTacticsCollapsed ? (
+                    <ChevronRight size={18} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                ) : (
+                    <ChevronDown size={18} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                )}
+                <h2 className="text-sm font-extrabold text-slate-700 uppercase tracking-wider group-hover:text-indigo-700 transition-colors">Key Metrics · Media Tactics</h2>
             </div>
 
             {/* Main Table */}
-            <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-xs" style={{ minWidth: 860 }}>
-                        <thead>
-                            <tr className="bg-slate-800">
-                                <th className={`${thBase} text-left pl-4 w-56`}></th>
-                                <th colSpan={3} className={`${thBase} border-x border-slate-600 bg-blue-800`}>
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span>Spend Share</span>
-                                        <div className="flex rounded overflow-hidden border border-blue-300 text-[9px] font-bold">
-                                            <button onClick={() => setYoyShowNumbers(false)} className={`px-1.5 py-0.5 transition-colors ${!yoyShowNumbers ? 'bg-white text-blue-800' : 'bg-blue-600 text-white'}`}>%</button>
-                                            <button onClick={() => setYoyShowNumbers(true)} className={`px-1.5 py-0.5 transition-colors ${yoyShowNumbers ? 'bg-white text-blue-800' : 'bg-blue-600 text-white'}`}>#</button>
+            {!isMediaTacticsCollapsed && (
+                <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm transition-all duration-300">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs" style={{ minWidth: 860 }}>
+                            <thead>
+                                <tr className="bg-slate-800">
+                                    <th className={`${thBase} text-left pl-4 w-56`}></th>
+                                    <th colSpan={3} className={`${thBase} border-x border-slate-600 bg-blue-800`}>
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span>Spend Share</span>
+                                            <div className="flex rounded overflow-hidden border border-blue-300 text-[9px] font-bold">
+                                                <button onClick={() => setYoyShowNumbers(false)} className={`px-1.5 py-0.5 transition-colors ${!yoyShowNumbers ? 'bg-white text-blue-800' : 'bg-blue-600 text-white'}`}>%</button>
+                                                <button onClick={() => setYoyShowNumbers(true)} className={`px-1.5 py-0.5 transition-colors ${yoyShowNumbers ? 'bg-white text-blue-800' : 'bg-blue-600 text-white'}`}>#</button>
+                                            </div>
                                         </div>
-                                    </div>
-                                </th>
-                                <th className={`${thBase} bg-indigo-600 border-x border-slate-600`}>YOY%</th>
-                                <th className={`${thBase} bg-slate-700`}>CPC/CPM/CPD<br /><span className="font-normal normal-case opacity-75">{periodLabels[2] || 'Latest'}</span></th>
-                                <th className={`${thBase} bg-slate-600`}>CPC/CPM/CPD<br /><span className="font-normal normal-case opacity-75">YOY %</span></th>
-                            </tr>
-                            <tr className="bg-slate-700 border-b border-slate-600">
-                                <th className="px-4 py-1.5 text-left text-[10px] text-slate-400"></th>
-                                {[0, 1, 2].map(i => (
-                                    <th key={i} className="px-3 py-1.5 text-[10px] font-bold text-blue-200 text-center border-x border-slate-600">
-                                        {periodLabels[i] || `P${i + 1}`}
                                     </th>
-                                ))}
-                                <th className="px-3 py-1.5 text-[10px] text-slate-400"></th>
-                                <th className="px-3 py-1.5 text-[10px] text-slate-400"></th>
-                                <th className="px-3 py-1.5 text-[10px] text-slate-400"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {GROUPS.map(groupName => {
-                                const rows = grouped[groupName] || [];
-                                const style = GROUP_STYLE[groupName];
+                                    <th className={`${thBase} bg-indigo-600 border-x border-slate-600`}>YOY%</th>
+                                    <th className={`${thBase} bg-slate-700`}>CPC/CPM/CPD<br /><span className="font-normal normal-case opacity-75">{periodLabels[2] || 'Latest'}</span></th>
+                                    <th className={`${thBase} bg-slate-600`}>CPC/CPM/CPD<br /><span className="font-normal normal-case opacity-75">YOY %</span></th>
+                                </tr>
+                                <tr className="bg-slate-700 border-b border-slate-600">
+                                    <th className="px-4 py-1.5 text-left text-[10px] text-slate-400"></th>
+                                    {[0, 1, 2].map(i => (
+                                        <th key={i} className="px-3 py-1.5 text-[10px] font-bold text-blue-200 text-center border-x border-slate-600">
+                                            {periodLabels[i] || `P${i + 1}`}
+                                        </th>
+                                    ))}
+                                    <th className="px-3 py-1.5 text-[10px] text-slate-400"></th>
+                                    <th className="px-3 py-1.5 text-[10px] text-slate-400"></th>
+                                    <th className="px-3 py-1.5 text-[10px] text-slate-400"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {GROUPS.map(groupName => {
+                                    const rows = grouped[groupName] || [];
+                                    const style = GROUP_STYLE[groupName];
 
-                                // Totals
-                                const totalShares = [0, 1, 2].map(i => rows.reduce((s, r) => s + (r.shares[i] || 0), 0));
-                                const activeRows = rows.filter(r => r.shares.some(s => s > 0));
-                                const avgYoy = activeRows.length ? activeRows.reduce((s, r) => s + r.spendYoy, 0) / activeRows.length : 0;
+                                    // Totals
+                                    const totalShares = [0, 1, 2].map(i => rows.reduce((s, r) => s + (r.shares[i] || 0), 0));
+                                    const activeRows = rows.filter(r => r.shares.some(s => s > 0));
+                                    const avgYoy = activeRows.length ? activeRows.reduce((s, r) => s + r.spendYoy, 0) / activeRows.length : 0;
 
-                                return (
-                                    <React.Fragment key={groupName}>
-                                        {/* Group header & total (Skip for TV Wall) */}
-                                        {groupName !== 'TV Wall' && (
-                                            <>
+                                    return (
+                                        <React.Fragment key={groupName}>
+                                            {/* Group header & total (Skip for TV Wall) */}
+                                            {groupName !== 'TV Wall' && (
                                                 <tr className={style.header}>
-                                                    <td colSpan={7} className="px-4 py-1.5 text-[11px] font-extrabold text-white uppercase tracking-wider">
+                                                    <td className="px-4 py-2 text-[11px] font-extrabold text-white uppercase tracking-wider bg-slate-700/80">
                                                         {groupName} Total
                                                     </td>
-                                                </tr>
-                                                <tr className={`${style.total} border-b-2 border-slate-300`}>
-                                                    <td className="px-4 py-2 text-[11px] font-bold text-slate-600 pl-8 italic">Total</td>
                                                     {[0, 1, 2].map(i => (
-                                                        <td key={i} className={`${tdBase} font-bold ${shareColor(totalShares[i])}`}>
+                                                        <td key={i} className={`${tdBase} font-bold text-white bg-slate-700/80 border-slate-600`}>
                                                             {yoyShowNumbers
                                                                 ? (() => { const s = activeRows.reduce((acc, r) => acc + (r.spends?.[i] || 0), 0); return `$${new Intl.NumberFormat('en-US').format(Math.round(s))}`; })()
                                                                 : fmtPct(totalShares[i])}
                                                         </td>
                                                     ))}
-                                                    <td className={`${tdBase} font-bold ${colorYoy(avgYoy)}`}>{fmtYoy(avgYoy)}</td>
-                                                    <td className={`${tdBase} text-slate-400`}>-</td>
-                                                    <td className={`${tdBase} text-slate-400`}>-</td>
+                                                    <td className={`${tdBase} font-bold text-white bg-slate-700/80 border-slate-600`}>{fmtYoy(avgYoy)}</td>
+                                                    <td className={`${tdBase} text-slate-400 bg-slate-700/80 border-slate-600`}>-</td>
+                                                    <td className={`${tdBase} text-slate-400 bg-slate-700/80 border-slate-600`}>-</td>
                                                 </tr>
-                                            </>
-                                        )}
-                                        {/* Tactic rows */}
-                                        {rows.map((r, ri) => {
-                                            const isZero = r.shares.every(s => s === 0);
-                                            return (
-                                                <tr key={r.displayName} className={`border-b border-slate-100 hover:bg-indigo-50/30 transition-colors ${isZero ? 'bg-rose-50/30' : ri % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
-                                                    <td className={`px-4 py-2 pl-${groupName === 'TV Wall' ? '4 font-bold text-slate-800' : '8 text-slate-700'} text-[11px] max-w-[220px] truncate ${isZero ? 'text-rose-500 font-normal' : ''}`} title={r.displayName}>
-                                                        {r.displayName}
-                                                    </td>
-                                                    {[0, 1, 2].map(i => (
-                                                        <td key={i} className={`${tdBase} ${isZero ? 'text-rose-400' : shareColor(r.shares[i])}`}>
-                                                            {yoyShowNumbers
-                                                                ? `$${new Intl.NumberFormat('en-US').format(Math.round(r.spends?.[i] || 0))}`
-                                                                : fmtPct(r.shares[i])}
+                                            )}
+                                            {/* Tactic rows */}
+                                            {rows.map((r, ri) => {
+                                                const isZero = r.shares.every(s => s === 0);
+                                                return (
+                                                    <tr key={r.displayName} className={`border-b border-slate-100 hover:bg-indigo-50/30 transition-colors ${isZero ? 'bg-rose-50/30' : ri % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
+                                                        <td className={`px-4 py-2 pl-${groupName === 'TV Wall' ? '4 font-bold text-slate-800' : '8 text-slate-700'} text-[11px] max-w-[220px] truncate ${isZero ? 'text-rose-500 font-normal' : ''}`} title={r.displayName}>
+                                                            {r.displayName}
                                                         </td>
-                                                    ))}
-                                                    <td className={`${tdBase} ${colorYoy(r.spendYoy)}`}>{fmtYoy(r.spendYoy)}</td>
-                                                    <td className={`${tdBase} ${isZero ? 'text-slate-400' : 'text-slate-700'}`}>{fmtCpa(r.cpa, r.isCpc)}</td>
-                                                    <td className={`${tdBase} ${colorYoy(r.cpaYoy)}`}>{fmtYoy(r.cpaYoy)}</td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </React.Fragment>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* OAD Table */}
-            {showOad && backendOadRows?.length > 0 ? (
-                <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-                    <div className="bg-slate-700 px-4 py-3">
-                        <h3 className="text-white text-xs font-extrabold uppercase tracking-widest">OAD (On-Air Days) Analysis</h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
-                            <thead>
-                                <tr className="bg-slate-100 border-b border-slate-200">
-                                    <th className="px-4 py-2 text-left font-bold text-slate-600 uppercase tracking-wider">Media</th>
-                                    <th className="px-4 py-2 text-center font-bold text-slate-600 uppercase tracking-wider">OAD</th>
-                                    <th className="px-4 py-2 text-center font-bold text-indigo-600 uppercase tracking-wider">On_air</th>
-                                    <th className="px-4 py-2 text-center font-bold text-rose-500 uppercase tracking-wider">Off_air</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {backendOadRows.map((row, i) => (
-                                    <tr key={i} className={`border-b border-slate-100 hover:bg-slate-50 ${row.oad === 0 ? 'text-rose-400' : 'text-slate-700'}`}>
-                                        <td className="px-4 py-2">{row.name}</td>
-                                        <td className="px-4 py-2 text-center font-mono">{row.oad}</td>
-                                        <td className="px-4 py-2 text-center font-mono">{row.on_air}%</td>
-                                        <td className="px-4 py-2 text-center font-mono">{row.off_air}%</td>
-                                    </tr>
-                                ))}
+                                                        {[0, 1, 2].map(i => (
+                                                            <td key={i} className={`${tdBase} ${isZero ? 'text-rose-400' : shareColor(r.shares[i])}`}>
+                                                                {yoyShowNumbers
+                                                                    ? `$${new Intl.NumberFormat('en-US').format(Math.round(r.spends?.[i] || 0))}`
+                                                                    : fmtPct(r.shares[i])}
+                                                            </td>
+                                                        ))}
+                                                        <td className={`${tdBase} ${colorYoy(r.spendYoy)}`}>{fmtYoy(r.spendYoy)}</td>
+                                                        <td className={`${tdBase} ${isZero ? 'text-slate-400' : 'text-slate-700'}`}>{fmtCpa(r.cpa, r.isCpc)}</td>
+                                                        <td className={`${tdBase} ${colorYoy(r.cpaYoy)}`}>{fmtYoy(r.cpaYoy)}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </React.Fragment>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 </div>
-            ) : showOad && <OadTable rows={enrichedRows} />}
+            )}
+
+            {/* OAD Table */}
+            {backendOadRows?.length > 0 ? (
+                <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm mt-8 transition-all duration-300">
+                    <div
+                        className="bg-slate-700 px-4 py-3 cursor-pointer select-none flex items-center justify-between hover:bg-slate-800 transition-colors group"
+                        onClick={() => setIsOadCollapsed(!isOadCollapsed)}
+                    >
+                        <h3 className="text-white text-xs font-extrabold uppercase tracking-widest group-hover:text-indigo-200 transition-colors">OAD (On-Air Days) Analysis</h3>
+                        {isOadCollapsed ? (
+                            <ChevronRight size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                        ) : (
+                            <ChevronDown size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                        )}
+                    </div>
+                    {!isOadCollapsed && (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="bg-slate-100 border-b border-slate-200">
+                                        <th className="px-4 py-2 text-left font-bold text-slate-600 uppercase tracking-wider">Media</th>
+                                        <th className="px-4 py-2 text-center font-bold text-slate-600 uppercase tracking-wider">OAD</th>
+                                        <th className="px-4 py-2 text-center font-bold text-indigo-600 uppercase tracking-wider">On_air</th>
+                                        <th className="px-4 py-2 text-center font-bold text-rose-500 uppercase tracking-wider">Off_air</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {backendOadRows.map((row, i) => (
+                                        <tr key={i} className={`border-b border-slate-100 hover:bg-slate-50 ${Number(row.oad) === 0 ? 'text-rose-400' : 'text-slate-700'}`}>
+                                            <td className="px-4 py-2">{row.name}</td>
+                                            <td className="px-4 py-2 text-center font-mono">{row.oad}</td>
+                                            <td className="px-4 py-2 text-center font-mono">{row.on_air}%</td>
+                                            <td className="px-4 py-2 text-center font-mono">{row.off_air}%</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            ) : <OadTable rows={enrichedRows} />}
         </div>
     );
 }

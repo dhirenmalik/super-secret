@@ -451,12 +451,28 @@ def generate_anomalies(df: pd.DataFrame) -> pd.DataFrame:
             if score >= p40: return "Medium"
             return "Low"
 
-        severity_df['Severity_Band'] = severity_df['Severity_Score'].apply(assign_band)
+        # Assign Point-Level Severity Bands based on Priority (Z-score intensity)
+        # This allows for precise filtering of individual points regardless of overall tactic severity
+        def assign_row_band(p):
+            if p >= 5: return "Critical"
+            if p >= 3: return "High"
+            if p >= 1.5: return "Medium"
+            return "Low"
+
+        results_df['Severity_Band'] = results_df['Priority'].apply(assign_row_band)
+
+        # Preserve tactic-level severity separately
+        severity_df['Tactic_Severity'] = severity_df['Severity_Score'].apply(assign_band)
+        
+        # Map tactic-level severity back to results for legacy support/observations tab
         results_df = results_df.merge(
-            severity_df[['Tactic_Prefix', 'Priority', 'Severity_Score', 'Severity_Band']],
-            on='Tactic_Prefix',
+            severity_df[['Tactic_Prefix', 'Priority', 'Severity_Score', 'Tactic_Severity']], 
+            on='Tactic_Prefix', 
             how='left'
         )
+        # Ensure 'Severity' column refers to the TACTIC level (observations tab expectation)
+        # and 'Severity_Band' refers to the POINT level (chart tab expectation)
+        results_df['Severity'] = results_df['Tactic_Severity']
                     
         results_df['Anomaly Date'] = pd.to_datetime(results_df['Anomaly Date'])
         results_df = results_df.sort_values(['Anomaly Date', 'Severity_Score'], ascending=[False, False])
@@ -651,6 +667,11 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
             raise HTTPException(status_code=500, detail=f"Error reading stack CSV: {str(e)}")
         
     df = preprocess_data(df)
+
+    # Apply Exclude Flag filter: Only keep included brands
+    if 'Exclude Flag' in df.columns:
+        df = df[df['Exclude Flag'] == 0].copy()
+
     
     # ── Derive aggregate columns ──
     for col in ['M_INSTORE_TV_WALL_SPEND', 'M_INSTORE_TV_WALL_IMP',
@@ -837,16 +858,23 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
                     })
 
             # ── On-Air / Off-Air ──
-            total_days = len(df)
-            granular_present = [c for c in SPENDS_GRANULAR if c in df.columns]
-            if granular_present and total_days > 0:
-                oad_data = df[granular_present].apply(lambda x: (x > 0).sum())
-                for col in granular_present:
-                    label = TACTIC_LABELS.get(col, col)
-                    oad = int(oad_data[col])
-                    on_pct = _safe_div(oad, total_days)
-                    on_air_analysis.append({'name': label, 'oad': oad, 'on_air': _pct(on_pct), 'off_air': _pct(1 - on_pct)})
-
+            # Only consider 'INDEX' dates to avoid double counting across multiple rows per date
+            if 'INDEX' in df.columns:
+                total_days = df['INDEX'].nunique()
+                
+                if total_days > 0:
+                    for spend_col, imp_col in zip(SPENDS_ALL, IMP_COLS_ALL):
+                        if spend_col not in SPENDS_GRANULAR:
+                            continue
+                        if imp_col in df.columns:
+                            # Group by date to see if the tactic was active on that day
+                            # 'active' means sum of clicks/impressions > 0 for that date
+                            daily_activity = df.groupby('INDEX')[imp_col].sum() > 0
+                            oad = daily_activity.sum()
+                            
+                            label = TACTIC_LABELS.get(spend_col, spend_col)
+                            on_pct = _safe_div(oad, total_days)
+                            on_air_analysis.append({'name': label, 'oad': int(oad), 'on_air': _pct(on_pct), 'off_air': _pct(1 - on_pct)})
             # ── Value Added ──
             for s, i in zip(SPENDS_ALL, IMP_COLS_ALL):
                 if s not in df.columns or i not in df.columns:
@@ -891,7 +919,6 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
     # 3. Extract Metadata
     subcategories = "Mixed"
     l2_list = db_metadata.get("l2_list", [])
-    num_brands = db_metadata.get("num_brands", 0)
     
     if l2_list:
         subcategories = ", ".join(l2_list)
@@ -918,8 +945,6 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
                     l2_list = sorted(cb_df[l2_col].dropna().astype(str).str.strip().unique().tolist())
                     l2_list = [x for x in l2_list if x and x.lower() not in ('nan', '', '0')]
                     subcategories = ", ".join(l2_list) if l2_list else "Mixed"
-                if 'UNIQUE_BRAND_NAME' in cb_df.columns:
-                    num_brands = cb_df['UNIQUE_BRAND_NAME'].nunique()
             except Exception as e:
                 print(f"[WARNING] Could not extract L2 from cleanbrand_agg: {e}")
 
@@ -927,9 +952,19 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
         subcat_list = df['SUB_CATEGORY'].dropna().unique().tolist()
         subcategories = ", ".join(str(x) for x in subcat_list) if subcat_list else "Mixed"
         l2_list = subcat_list
-        
-    if 'BRAND' in df.columns and num_brands == 0:
-        num_brands = df['BRAND'].nunique()
+
+    # Get the number of included brands definitively from the saved exclusion analysis
+    num_brands = 0
+    try:
+        from app.modules.analytics.models import AnalyticalResult
+        res = db.query(AnalyticalResult).filter(AnalyticalResult.result_type == f"brand_exclusion_{model_id}").first()
+        if res and res.result_data:
+            data_dict = json.loads(res.result_data)
+            summary = data_dict.get("summary", {})
+            if "included_brands_count" in summary:
+                num_brands = summary["included_brands_count"]
+    except Exception as e:
+        print(f"[WARNING] Could not calculate num_brands from AnalyticalResult: {e}")
     
     final_data_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "data", project_name, "L3 Output", "final_model_data.csv"))
     if os.path.exists(final_data_path) and not l2_list:
@@ -939,8 +974,6 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
                 subcat_list = final_df['SUB_CATEGORY'].dropna().unique().tolist()
                 l2_list = subcat_list
                 subcategories = ", ".join(str(x) for x in subcat_list) if subcat_list else subcategories
-            if 'BRAND' in final_df.columns:
-                num_brands = final_df['BRAND'].nunique()
         except Exception:
             pass
 

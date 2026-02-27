@@ -8,10 +8,9 @@ import {
     Title,
     Tooltip,
     Legend,
-    ScatterController,
     Filler
 } from 'chart.js';
-import { Line, Scatter } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import { AlertCircle, Maximize2, Minimize2, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
 import MultiSelectDropdown from '../common/MultiSelectDropdown';
 
@@ -23,15 +22,15 @@ ChartJS.register(
     Title,
     Tooltip,
     Legend,
-    ScatterController,
     Filler
 );
 
 export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable, anomalies }) {
     const [selectedCols, setSelectedCols] = useState([]);
-    const [chartType, setChartType] = useState('line'); // 'line', 'scatter', 'dual_line'
+    const [chartType, setChartType] = useState('line'); // 'line', 'dual_line'
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
     const [useAnomalies, setUseAnomalies] = useState(true);
+    const [severityFilter, setSeverityFilter] = useState('All');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const chartContainerRef = useRef(null);
     const chartRef = useRef(null);
@@ -223,28 +222,6 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
             'rgba(14, 165, 233, 0.08)',
         ];
 
-        if (chartType === 'scatter' && selectedCols.length >= 2) {
-            // Scatter needs x and y
-            const xCol = selectedCols[0];
-            const yCol = selectedCols[1];
-
-            const scatterPoints = filteredData.map(d => ({
-                x: d[xCol] || 0,
-                y: d[yCol] || 0,
-                date: d.date // custom for tooltip
-            }));
-
-            return {
-                datasets: [{
-                    label: `${yCol} vs ${xCol}`,
-                    data: scatterPoints,
-                    backgroundColor: colors[0],
-                    borderColor: colors[0],
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                }]
-            };
-        }
 
         // Line / Dual Line
         let datasets = selectedCols.map((col, idx) => {
@@ -274,7 +251,7 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
         // ---------------------------------------------------------
         // ADD PEAKS & DIPS (from legacy discovery.py anomalies feed)
         // ---------------------------------------------------------
-        if (anomalies && (anomalies.peaks?.length > 0 || anomalies.dips?.length > 0) && chartType !== 'scatter') {
+        if (anomalies && (anomalies.peaks?.length > 0 || anomalies.dips?.length > 0)) {
             const peakData = filteredData.map(pt => {
                 const match = anomalies.peaks?.find(p => p.date === pt.date);
                 return match ? match.value : null;
@@ -315,53 +292,57 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
         }
         // ---------------------------------------------------------
 
-        // Add anomaly scatter overlays grouped by Reason
-        if (anomaliesTable && anomaliesTable.length > 0 && chartType !== 'scatter') {
+        // Add anomaly scatter overlays grouped by Reason with Severity Filtering
+        if (useAnomalies && anomaliesTable && anomaliesTable.length > 0) {
             const currentTacticPrefix = activeTacticFilter === 'All'
                 ? (anomaliesTable[0]?.Tactic_Prefix || '')
                 : (activeTacticFilter || '').replace(/_SPEND|_IMP|_CLK/i, '');
 
             if (currentTacticPrefix) {
+                // Determine active reasons based on the selected tactic AND the severity filter
                 const reasons = Array.from(new Set(
                     anomaliesTable
-                        .filter(a => a.Tactic_Prefix === currentTacticPrefix)
+                        .filter(a => {
+                            const matchTactic = a.Tactic_Prefix === currentTacticPrefix;
+                            const matchSeverity = severityFilter === 'All' ||
+                                (a.Severity_Band || a.Severity || 'Low').toString().trim().toLowerCase() === severityFilter.toLowerCase();
+                            return matchTactic && matchSeverity;
+                        })
                         .map(a => a.Reason || 'Other')
                 ));
 
-                const reasonColorMap = {
-                    'Spend spike only': '#ef4444',
-                    'Impression spike only': '#f97316',
-                    'High Spend spike': '#dc2626',
-                    'High Impression spike': '#f59e0b',
-                    'No Spend with added value Impressions': '#6366f1',
-                    'High Spend, Low IMP': '#9333ea',
-                    'High IMP, Low Spend': '#06b6d4',
-                    'Spike in Spend & IMP': '#10b981',
-                    'Drop in IMP & Spend': '#ef4444',
-                    'Other': '#94a3b8'
+                const severityColors = {
+                    'Critical': '#f43f5e', // Rose 500
+                    'High': '#f59e0b',     // Amber 500
+                    'Medium': '#10b981',   // Emerald 500
+                    'Low': '#64748b',      // Slate 500
+                    'Manual': '#6366f1'    // Indigo 500 (fallback)
                 };
 
-                // Try to place anomaly dots on an active line
-                const possibleCols = [`${currentTacticPrefix}_IMP`, `${currentTacticPrefix}_CLK`, `${currentTacticPrefix}_SPEND`];
+                // Try to place anomaly dots on an active line (Spend first, then Imp/Clk)
+                const possibleCols = [`${currentTacticPrefix}_SPEND`, `${currentTacticPrefix}_IMP`, `${currentTacticPrefix}_CLK`];
                 let plotCol = possibleCols.find(c => selectedCols.includes(c));
                 if (!plotCol) {
-                    plotCol = selectedCols[0]; // fallback
+                    plotCol = selectedCols[0]; // fallback to first visible
                 }
 
                 reasons.forEach(reason => {
-                    const color = reasonColorMap[reason] || '#ef4444';
-
                     const anomalyMatches = filteredData.map(pt => {
                         const ptDate = pt.date ? pt.date.substring(0, 10) : '';
                         return anomaliesTable.find(a => {
                             const tableDate = a['Anomaly Date'] ? a['Anomaly Date'].substring(0, 10) : '';
-                            return tableDate === ptDate &&
+                            const matchBasic = tableDate === ptDate &&
                                 a.Tactic_Prefix === currentTacticPrefix &&
                                 a.Reason === reason;
+
+                            const matchSeverity = severityFilter === 'All' ||
+                                (a.Severity_Band || a.Severity || 'Low').toString().toLowerCase() === severityFilter.toLowerCase();
+
+                            return matchBasic && matchSeverity;
                         });
                     });
 
-                    // Only plot if there's at least one match for this reason
+                    // Only plot if there's at least one match for this reason + severity
                     if (anomalyMatches.some(m => m)) {
                         datasets.push({
                             type: 'scatter',
@@ -372,38 +353,58 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
                                 if (plotCol && pt[plotCol] !== undefined) return pt[plotCol];
                                 return null;
                             }),
-                            customAnomalies: anomalyMatches, // Inject for tooltip
-                            backgroundColor: color,
-                            borderColor: color,
+                            customAnomalies: anomalyMatches,
+                            backgroundColor: anomalyMatches.map(m => {
+                                if (!m) return 'transparent';
+                                const rawSev = (m.Severity_Band || m.Severity || 'Low').toString().trim();
+                                const sev = rawSev.charAt(0).toUpperCase() + rawSev.slice(1).toLowerCase();
+                                return severityColors[sev] || severityColors.Manual;
+                            }),
+                            borderColor: '#fff',
+                            borderWidth: 2,
                             pointRadius: 6,
-                            pointHoverRadius: 8,
-                            yAxisID: 'y'
+                            pointHoverRadius: 9,
+                            yAxisID: chartType === 'dual_line'
+                                ? (plotCol?.includes('SPEND') ? 'y-spend' : (plotCol?.includes('IMP') || plotCol?.includes('CLK') ? 'y-imp' : 'y'))
+                                : 'y'
                         });
                     }
                 });
             } else {
-                // Fallback rendering
+                // Fallback rendering for 'All' tactics view or unknown prefix
                 selectedCols.forEach(col => {
                     const tacticPrefix = col.replace('_SPEND', '').replace('_IMP', '').replace('_CLK', '');
                     const anomalyMatches = filteredData.map(pt => {
                         const ptDate = pt.date;
                         return anomaliesTable.find(a => {
-                            const tableDate = a['Anomaly Date'] ? a['Anomaly Date'].substring(0, 10) : '';
-                            return tableDate === ptDate && a.Tactic_Prefix === tacticPrefix;
+                            const tableDate = a['Anomaly Date'] ? a['Anomaly Date'].substring(0, 10) : (a.Anomaly_Date || '');
+                            const matchBasic = tableDate.substring(0, 10) === ptDate.substring(0, 10) && a.Tactic_Prefix === tacticPrefix;
+                            const matchSeverity = severityFilter === 'All' ||
+                                (a.Severity_Band || a.Severity || 'Low').toString().trim().toLowerCase() === severityFilter.toLowerCase();
+                            return matchBasic && matchSeverity;
                         });
                     });
 
                     if (anomalyMatches.some(m => m)) {
+                        const sevColors = { 'Critical': '#f43f5e', 'High': '#f59e0b', 'Medium': '#10b981', 'Low': '#64748b' };
                         datasets.push({
                             type: 'scatter',
                             label: `${col} Anomalies`,
                             data: anomalyMatches.map((m, i) => m && filteredData[i][col] !== undefined ? filteredData[i][col] : null),
                             customAnomalies: anomalyMatches,
-                            backgroundColor: '#ef4444',
-                            borderColor: '#ef4444',
+                            backgroundColor: anomalyMatches.map(m => {
+                                if (!m) return 'transparent';
+                                const rawSev = (m.Severity_Band || m.Severity || 'Low').toString().trim();
+                                const sev = rawSev.charAt(0).toUpperCase() + rawSev.slice(1).toLowerCase();
+                                return sevColors[sev] || '#ef4444';
+                            }),
+                            borderColor: '#fff',
+                            borderWidth: 2,
                             pointRadius: 6,
-                            pointHoverRadius: 8,
-                            yAxisID: 'y'
+                            pointHoverRadius: 9,
+                            yAxisID: chartType === 'dual_line'
+                                ? (col.includes('SPEND') ? 'y-spend' : (col.includes('IMP') || col.includes('CLK') ? 'y-imp' : 'y'))
+                                : 'y'
                         });
                     }
                 });
@@ -412,7 +413,7 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
 
         return { labels, datasets };
 
-    }, [filteredData, selectedCols, chartType, anomalies, anomaliesTable]);
+    }, [filteredData, selectedCols, chartType, anomalies, anomaliesTable, useAnomalies, severityFilter]);
 
     // ChartJS Options Configuration
     const chartOptions = useMemo(() => {
@@ -435,20 +436,7 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
             }
         };
 
-        if (chartType === 'scatter') {
-            scales = {
-                x: {
-                    type: 'linear',
-                    position: 'bottom',
-                    title: { display: true, text: selectedCols[0], font: { weight: 'bold' } },
-                    grid: { color: '#f1f5f9' }
-                },
-                y: {
-                    title: { display: true, text: selectedCols[1], font: { weight: 'bold' } },
-                    grid: { color: '#f1f5f9' }
-                }
-            };
-        } else if (chartType === 'dual_line') {
+        if (chartType === 'dual_line') {
             scales['y'] = {
                 type: 'linear',
                 display: true,
@@ -612,12 +600,40 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
                         >
                             Dual Axis
                         </button>
+                    </div>
+
+                    <div className="w-px h-5 bg-slate-300"></div>
+
+                    {/* Anomaly Controls */}
+                    <div className="flex items-center gap-3">
                         <button
-                            onClick={() => setChartType('scatter')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${chartType === 'scatter' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            onClick={() => setUseAnomalies(!useAnomalies)}
+                            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-md transition-all border ${useAnomalies ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
                         >
-                            Scatter
+                            <AlertCircle size={14} className={useAnomalies ? 'text-indigo-600' : 'text-slate-400'} />
+                            Show Anomalies
                         </button>
+
+                        {useAnomalies && (
+                            <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200">
+                                {['All', 'Critical', 'High', 'Medium', 'Low'].map(sev => (
+                                    <button
+                                        key={sev}
+                                        onClick={() => setSeverityFilter(sev)}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${severityFilter === sev
+                                            ? sev === 'Critical' ? 'bg-rose-500 text-white shadow-sm'
+                                                : sev === 'High' ? 'bg-amber-500 text-white shadow-sm'
+                                                    : sev === 'Medium' ? 'bg-emerald-500 text-white shadow-sm'
+                                                        : sev === 'Low' ? 'bg-slate-500 text-white shadow-sm'
+                                                            : 'bg-white shadow-sm text-indigo-600'
+                                            : 'text-slate-500 hover:text-slate-700'
+                                            }`}
+                                    >
+                                        {sev}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="w-px h-5 bg-slate-300"></div>
@@ -680,11 +696,7 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
             {/* Main Chart Area */}
             <div className={`flex-1 p-6 relative bg-white ${chartData?.period_agg ? 'min-h-[350px]' : ''}`}>
                 {chartRenderData ? (
-                    chartType === 'scatter' ? (
-                        <Scatter ref={chartRef} data={chartRenderData} options={chartOptions} />
-                    ) : (
-                        <Line ref={chartRef} data={chartRenderData} options={chartOptions} />
-                    )
+                    <Line ref={chartRef} data={chartRenderData} options={chartOptions} />
                 ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
                         <div className="animate-pulse bg-slate-100 w-full h-full rounded-lg absolute inset-4 border-2 border-dashed border-slate-200"></div>

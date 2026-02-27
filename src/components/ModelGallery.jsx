@@ -1,5 +1,36 @@
 import React from 'react';
 
+const getStatusConfig = (status) => {
+    switch (status?.toLowerCase()) {
+        case 'completed': return { label: 'COMPLETED', colorClass: 'success' };
+        case 'in_progress': return { label: 'IN PROGRESS', colorClass: 'warning' };
+        case 'draft': return { label: 'DRAFT', colorClass: 'slate' };
+        case 'in_review': return { label: 'UNDER REVIEW', colorClass: 'warning' };
+        case 'approved': return { label: 'APPROVED', colorClass: 'success' };
+        case 'rejected': return { label: 'REJECTED', colorClass: 'danger' };
+        default: return { label: (status || 'READY').toUpperCase(), colorClass: 'blue' };
+    }
+};
+
+const getActiveStageInfo = (model) => {
+    if (model.eda_email_status === 'in_progress' || model.eda_email_status === 'in_review' || model.eda_email_status === 'rejected') {
+        return { name: 'Email Report', status: model.eda_email_status };
+    }
+    if (model.discovery_status === 'in_progress' || model.discovery_status === 'in_review' || model.discovery_status === 'rejected') {
+        return { name: 'Discovery Tool', status: model.discovery_status };
+    }
+    if (model.brand_status === 'in_progress' || model.brand_status === 'in_review' || model.brand_status === 'rejected') {
+        return { name: 'Brand Stacks', status: model.brand_status };
+    }
+    if (model.exclude_status === 'in_progress' || model.exclude_status === 'in_review' || model.exclude_status === 'rejected') {
+        return { name: 'Exclude Flag', status: model.exclude_status };
+    }
+    if (model.eda_email_status === 'approved') {
+        return { name: 'Completed', status: 'completed' }
+    }
+    return { name: 'Exclude Flag', status: model.exclude_status || 'not_started' };
+};
+
 export default function ModelGallery({ models, onSelect, activeModelId }) {
     return (
         <div className="mt-8">
@@ -26,10 +57,16 @@ export default function ModelGallery({ models, onSelect, activeModelId }) {
                                         <line x1="12" y1="22.08" x2="12" y2="12"></line>
                                     </svg>
                                 </div>
-                                <span className={`status-badge success`}>
-                                    <span className="status-badge-dot"></span>
-                                    READY
-                                </span>
+                                {(() => {
+                                    const stageInfo = getActiveStageInfo(model);
+                                    const config = getStatusConfig(stageInfo.status);
+                                    return (
+                                        <span className={`status-badge ${config.colorClass}`}>
+                                            <span className="status-badge-dot"></span>
+                                            {stageInfo.name} - {config.label}
+                                        </span>
+                                    );
+                                })()}
                             </div>
                             <h3 className="font-bold text-slate-800 mb-1 group-hover:text-blue-600 transition-colors">{model.model_name}</h3>
                             <div className="flex flex-wrap gap-2 mb-4">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '../components/PageHeader';
 import TaskList from '../components/TaskList';
 import AutomationNote from '../components/AutomationNote';
@@ -6,23 +6,29 @@ import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 import { useAuth } from '../context/AuthContext';
 import { fetchLatestFile, getApiBaseUrl } from '../api/kickoff';
-import { buildBrandStack, fetchBuiltStack } from '../api/eda';
+import { buildBrandStack, fetchBuiltStack, updateStageStatus } from '../api/eda';
 import { Loader2, CheckCircle, AlertTriangle, Play, Settings } from 'lucide-react';
 import { formatCurrencyMillions } from '../utils/formatters';
 import { motion, AnimatePresence } from 'framer-motion';
 import ModelGallery from '../components/ModelGallery';
 
-const step = steps.find((s) => s.slug === 'brand-stacks-creation');
-
-export default function BrandStacksCreation() {
+export default function BrandStacksCreation({ mode, overrideStepSlug }) {
+    const stepSlug = overrideStepSlug || 'brand-stacks-creation';
+    const step = steps.find((s) => s.slug === stepSlug);
     const { token } = useAuth();
     const [isBuilding, setIsBuilding] = useState(false);
     const [buildResult, setBuildResult] = useState(null);
     const [error, setError] = useState(null);
     const [stackType, setStackType] = useState('brand');
+    const [brands, setBrands] = useState([]);
     const [models, setModels] = useState([]);
     const [activeModelId, setActiveModelId] = useState(localStorage.getItem('active_model_id') || '');
     const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+    // Add effect to find the active model object
+    const activeModel = useMemo(() => {
+        return models.find(m => m.model_id.toString() === activeModelId);
+    }, [models, activeModelId]);
 
     useEffect(() => {
         loadModels();
@@ -81,6 +87,9 @@ export default function BrandStacksCreation() {
             const payload = { stack_type: stackType };
             const result = await buildBrandStack(latestFile.file_id, payload, token);
             setBuildResult(result);
+
+            // Re-fetch models to update the stack_built status if needed, though activeModel might be stale
+            loadModels();
         } catch (err) {
             console.error(err);
             setError(err.message || "Failed to build brand stacks.");
@@ -89,24 +98,82 @@ export default function BrandStacksCreation() {
         }
     };
 
+    const handleStatusUpdate = async (newStatus) => {
+        try {
+            await updateStageStatus(activeModelId, 'brand', newStatus, token);
+            // Reload models to refresh the UI status
+            await loadModels();
+        } catch (err) {
+            console.error(err);
+            setError(err.message || "Failed to update review status.");
+        }
+    };
+
+    const isReadOnly = useMemo(() => {
+        if (mode === 'reviewer') return true;
+        return false;
+    }, [mode]);
+
+    const userRole = localStorage.getItem('role') || 'modeler'; // Assuming role is stored here for now, or get from AuthContext
+    const isModeler = userRole === 'modeler' && mode !== 'reviewer';
+    const isReviewer = userRole === 'reviewer' || mode === 'reviewer';
+
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
-            className="flex flex-col h-full bg-slate-50/30 min-h-screen pb-12"
+            className="brand-stacks-container min-h-screen bg-slate-50 relative pb-20"
         >
             <PageHeader
                 title={step.name}
-                subtitle="Create total category stack and aggregated brand stacks for data prep and modeling."
+                subtitle="Build and review the final analytical stacks based on defined parameters."
                 breadcrumb={['Dashboard', 'EDA Phase', step.name]}
                 stepNumber={step.id}
                 phase={step.phase}
                 activeModelId={activeModelId}
                 models={models}
-                onModelSwitch={() => setActiveModelId('')}
+                onModelSwitch={setActiveModelId}
+                showBackButton={!!activeModelId}
+                onBack={() => {
+                    setActiveModelId('');
+                    setBuildResult(null);
+                    setError(null);
+                }}
             >
-                <StatusBadge status={buildResult ? 'completed' : 'not_started'} />
+                {activeModel && (
+                    <div className="flex items-center gap-3">
+                        <StatusBadge status={activeModel.brand_status || 'not_started'} />
+
+                        {/* Actions for Modeler */}
+                        {isModeler && activeModel.brand_status !== 'in_review' && activeModel.brand_status !== 'approved' && buildResult && (
+                            <button
+                                onClick={() => handleStatusUpdate('in_review')}
+                                className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition"
+                            >
+                                Submit for Review
+                            </button>
+                        )}
+
+                        {/* Actions for Reviewer */}
+                        {isReviewer && activeModel.brand_status === 'in_review' && (
+                            <div className="flex items-center gap-2 border-l border-slate-200 pl-3 ml-1">
+                                <button
+                                    onClick={() => handleStatusUpdate('approved')}
+                                    className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-bold hover:bg-green-700 transition"
+                                >
+                                    Approve
+                                </button>
+                                <button
+                                    onClick={() => handleStatusUpdate('rejected')}
+                                    className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition"
+                                >
+                                    Reject
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </PageHeader>
 
             <div className="px-6 mt-6 space-y-6">
@@ -184,9 +251,10 @@ export default function BrandStacksCreation() {
                                     <div className="space-y-2">
                                         <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-widest pl-1">Stack Type</label>
                                         <select
-                                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-800 shadow-sm appearance-none bg-white outline-none"
+                                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-800 shadow-sm appearance-none bg-white outline-none disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                                             value={stackType}
                                             onChange={(e) => setStackType(e.target.value)}
+                                            disabled={isReadOnly}
                                         >
                                             <option value="total">cleanbrand_agg</option>
                                             <option value="brand">Aggregated Brand Stack</option>
@@ -203,11 +271,13 @@ export default function BrandStacksCreation() {
                                     <div className="pt-2">
                                         <button
                                             onClick={handleBuildStack}
-                                            disabled={isBuilding}
+                                            disabled={isBuilding || isReadOnly}
                                             className={`w-full py-3.5 rounded-xl font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2 outline-none
-                                        ${isBuilding
-                                                    ? 'bg-indigo-400 text-white cursor-wait opacity-80'
-                                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md hover:shadow-indigo-200 hover:-translate-y-0.5'
+                                        ${isReadOnly
+                                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                                    : isBuilding
+                                                        ? 'bg-indigo-400 text-white cursor-wait opacity-80'
+                                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md hover:shadow-indigo-200 hover:-translate-y-0.5'
                                                 }`}
                                         >
                                             {isBuilding ? (

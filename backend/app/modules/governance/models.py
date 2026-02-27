@@ -82,6 +82,13 @@ class Model(Base):
     model_name = Column(String(150), nullable=False)
     model_type = Column(String(100))
     status = Column(String(50), default="draft")
+    
+    # Workflow Stage Statuses
+    exclude_status = Column(String(50), default="in_progress")
+    brand_status = Column(String(50), default="not_started")
+    discovery_status = Column(String(50), default="not_started")
+    eda_email_status = Column(String(50), default="not_started")
+    
     current_stage_id = Column(Integer, ForeignKey("workflow_stages.stage_id"))
     created_by = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

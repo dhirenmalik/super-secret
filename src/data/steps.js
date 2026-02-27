@@ -143,6 +143,18 @@ const steps = [
         automationNotes: [],
     },
     {
+        id: '9-review',
+        slug: 'brand-stacks-review',
+        name: 'Brand Stacks Review',
+        icon: 'Layers',
+        phase: 'EDA',
+        allowedRoles: ['admin', 'reviewer'],
+        tasks: [
+            'Review aggregated brand stack and modeling data prep',
+        ],
+        automationNotes: [],
+    },
+    {
         id: 10,
         slug: 'discovery-tool-analysis',
         name: 'Discovery Tool Analysis',
@@ -151,6 +163,18 @@ const steps = [
         allowedRoles: ['admin', 'modeler'],
         tasks: [
             'Create report with trends, charts, comparison with Raw data at total and Variable level',
+        ],
+        automationNotes: [],
+    },
+    {
+        id: '10-review',
+        slug: 'discovery-tool-review',
+        name: 'Discovery Tool Review',
+        icon: 'LineChart',
+        phase: 'EDA',
+        allowedRoles: ['admin', 'reviewer'],
+        tasks: [
+            'Review trends, charts, and data anomalies',
         ],
         automationNotes: [],
     },
@@ -182,6 +206,19 @@ const steps = [
         ],
         automationNotes: [],
     },
+    {
+        id: '12-review',
+        slug: 'eda-email-review',
+        name: 'EDA Email Review',
+        icon: 'Mail',
+        phase: 'EDA',
+        allowedRoles: ['admin', 'reviewer'],
+        tasks: [
+            'Review generated key insights and summary tables for EDA Email Report',
+        ],
+        automationNotes: [],
+    },
+
     // Model Building Phase
     {
         id: 13,

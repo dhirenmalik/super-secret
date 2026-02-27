@@ -12,9 +12,12 @@ import KickoffReportReview from './pages/KickoffReportReview';
 import ExcludeFlagAnalysis from './pages/ExcludeFlagAnalysis';
 import ExcludeFlagReview from './pages/ExcludeFlagReview';
 import BrandStacksCreation from './pages/BrandStacksCreation';
+import BrandStacksReview from './pages/BrandStacksReview';
 import DiscoveryToolAnalysis from './pages/DiscoveryToolAnalysis';
+import DiscoveryToolReview from './pages/DiscoveryToolReview';
 import ToolReview from './pages/ToolReview';
 import EdaEmailReport from './pages/EdaEmailReport';
+import EdaEmailReview from './pages/EdaEmailReview';
 import EdaDataHub from './pages/EdaDataHub';
 import CreateModel from './pages/CreateModel';
 
@@ -108,9 +111,19 @@ function App() {
                             <BrandStacksCreation />
                         </ProtectedRoute>
                     } />
+                    <Route path="step/brand-stacks-review" element={
+                        <ProtectedRoute allowedRoles={['admin', 'reviewer']}>
+                            <BrandStacksReview />
+                        </ProtectedRoute>
+                    } />
                     <Route path="step/discovery-tool-analysis" element={
                         <ProtectedRoute allowedRoles={['admin', 'modeler']}>
                             <DiscoveryToolAnalysis />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="step/discovery-tool-review" element={
+                        <ProtectedRoute allowedRoles={['admin', 'reviewer']}>
+                            <DiscoveryToolReview />
                         </ProtectedRoute>
                     } />
                     <Route path="step/tool-review" element={
@@ -121,6 +134,11 @@ function App() {
                     <Route path="step/eda-email-report" element={
                         <ProtectedRoute allowedRoles={['admin', 'modeler']}>
                             <EdaEmailReport />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="step/eda-email-review" element={
+                        <ProtectedRoute allowedRoles={['admin', 'reviewer']}>
+                            <EdaEmailReview />
                         </ProtectedRoute>
                     } />
 

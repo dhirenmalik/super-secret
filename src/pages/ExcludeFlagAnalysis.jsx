@@ -4,7 +4,7 @@ import TaskList from '../components/TaskList';
 import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
-import { fetchExcludeAnalysis, updateRelevance, fetchBrandExclusion } from '../api/eda';
+import { fetchExcludeAnalysis, updateRelevance, fetchBrandExclusion, updateStageStatus } from '../api/eda';
 import { fetchLatestFile, getApiBaseUrl, updateBrandExclusion, updateReportStatus } from '../api/kickoff';
 import { useAuth } from '../context/AuthContext';
 import BrandExclusionTable from '../components/eda/BrandExclusionTable';
@@ -13,6 +13,7 @@ import { formatCurrencyMillions } from '../utils/formatters';
 import TopExcludedSheet from '../components/eda/TopExcludedSheet';
 import DiscussionBoard from '../components/eda/DiscussionBoard';
 import MultiSelect from '../components/MultiSelect';
+import ModelGallery from '../components/ModelGallery';
 
 export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug = null }) {
     const { token } = useAuth();
@@ -29,7 +30,7 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
     const [sortConfig, setSortConfig] = useState({ key: 'sales', direction: 'desc' });
     const [latestFile, setLatestFile] = useState(null);
     const [models, setModels] = useState([]);
-    const [activeModelId, setActiveModelId] = useState(() => localStorage.getItem('active_model_id') || '');
+    const [activeModelId, setActiveModelId] = useState(localStorage.getItem('active_model_id') || '');
     const [searchTerm, setSearchTerm] = useState('');
 
     // Unified filter state
@@ -295,7 +296,9 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
         setIsActionLoading(true);
         try {
             await updateReportStatus(latestFile.file_id, newStatus, token);
+            await updateStageStatus(activeModelId, 'exclude', newStatus, token);
             setLatestFile(prev => ({ ...prev, status: newStatus }));
+            await loadModels();
         } catch (error) {
             console.error('Failed to update status:', error);
             alert('Failed to update report status. Please try again.');
@@ -344,16 +347,21 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
 
 
     return (
-        <div>
+        <div className="discovery-tool-container min-h-screen bg-slate-50 relative pb-20">
             <PageHeader
                 title={step.name}
-                subtitle="Analyze and flag subcategories or specific brands for inclusion based on key metrics."
-                breadcrumb={['Dashboard', 'EDA Phase', step.name]}
+                subtitle="Map inputs to Exclude Flags, Private Brands, and Mapping Issues to finalize the analysis stack."
                 stepNumber={step.id}
                 phase={step.phase}
                 activeModelId={activeModelId}
                 models={models}
-                onModelSwitch={() => setActiveModelId('')}
+                onModelSwitch={setActiveModelId}
+                showBackButton={!!activeModelId}
+                onBack={() => {
+                    setActiveModelId('');
+                    setLatestFile(null);
+                    setBrandData(null);
+                }}
             >
                 <div className="flex items-center gap-4">
                     {activeModelId && (
@@ -483,68 +491,13 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
             )}
 
             {!activeModelId ? (
-                <div className="mt-8">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="section-title m-0">
-                            <span className="tag tag-blue">SELECT PROJECT</span>
-                            Model Gallery
-                        </h2>
-                    </div>
-
-                    {models.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {models.map((model) => (
-                                <div
-                                    key={model.model_id}
-                                    onClick={() => {
-                                        setActiveModelId(model.model_id);
-                                        localStorage.setItem('active_model_id', model.model_id);
-                                    }}
-                                    className="card h-full cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all border-t-4 border-t-blue-500 group"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="card-title-icon blue">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                                            </svg>
-                                        </div>
-                                        <span className={`status - badge success`}>
-                                            <span className="status-badge-dot"></span>
-                                            READY
-                                        </span>
-                                    </div>
-                                    <h3 className="font-bold text-slate-800 mb-1 group-hover:text-blue-600 transition-colors">{model.model_name}</h3>
-                                    <div className="flex flex-wrap gap-2 mb-4">
-                                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold uppercase tracking-wider">
-                                            Type: {model.model_type}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50">
-                                        <span className="text-[10px] text-slate-400 font-medium">
-                                            Created {new Date(model.created_at).toLocaleDateString()}
-                                        </span>
-                                        <span className="text-blue-600 font-bold text-xs flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                                            Analyze
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="card py-16 text-center border-dashed">
-                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
-                                <svg className="text-slate-300" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                                </svg>
-                            </div>
-                            <h3 className="font-bold text-slate-800">No Projects Found</h3>
-                            <p className="text-sm text-slate-500">Please create a model from the dashboard first.</p>
-                        </div>
-                    )}
-                </div>
+                <ModelGallery
+                    models={models}
+                    onSelect={(id) => {
+                        setActiveModelId(id);
+                        localStorage.setItem('active_model_id', id);
+                    }}
+                />
             ) : (
                 <div style={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.2s ease-in-out' }}>
                     {loading && (
@@ -793,7 +746,8 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
                         <AutomationNote notes={step.automationNotes} />
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }

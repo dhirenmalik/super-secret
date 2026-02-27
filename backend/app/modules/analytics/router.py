@@ -207,7 +207,7 @@ async def get_discovery_analysis(
     db: Session = Depends(get_db)
 ):
     try:
-        return discovery.get_discovery_data(db, model_id)
+        return discovery.get_discovery_data(db, model_id, force_refresh=True)
     except HTTPException:
         raise
     except Exception as e:
