@@ -7,4 +7,9 @@ dist
 __pycache__
 *.pyc
 uploads
-backend/mappings/backend/sql_app.db
+
+# Secrets
+.env
+.env.*
+**/ .env
+**/ .env.*
