@@ -33,6 +33,127 @@ IMP_COLS = [
     "M_OFF_DIS_WN_WITHOUTCTV_IMP", "M_OFF_DIS_DSP_CTV_IMP"
 ]
 
+# Tactic Labels
+TACTIC_LABELS = {
+    'M_SP_AB_SPEND': 'Sponsored Products Automatic',
+    'M_SP_KWB_SPEND': 'Sponsored Products Manual',
+    'M_SBA_SPEND': 'Sponsored Brands',
+    'M_SV_SPEND': 'Sponsored Products Video',
+    'M_ON_DIS_AT_SPEND': 'Onsite Display Audience Targeting',
+    'M_ON_DIS_CT_SPEND': 'Onsite Display Contextual Targeting',
+    'M_ON_DIS_CATTO_SPEND': 'Onsite Display Category Takeover',
+    'M_ON_DIS_KW_SPEND': 'Onsite Display Keyword',
+    'M_ON_DIS_ROS_SPEND': 'Onsite Display Run-of-site',
+    'M_ON_DIS_TOTAL_HPLO_SPEND': 'Onsite Display Total HPLO',
+    'M_ON_DIS_HP_SPEND': 'Onsite Display Homepage',
+    'M_ON_DIS_HPTO_SPEND': 'Onsite Display Homepage Takeover',
+    'M_ON_DIS_HPGTO_SPEND': 'Onsite Display Homepage Gallery Takeover',
+    'M_OFF_DIS_FB_SPEND': 'Offsite Display Facebook',
+    'M_OFF_DIS_PIN_SPEND': 'Offsite Display Pinterest',
+    'M_OFF_DIS_WN_WITHOUTCTV_SPEND': 'Offsite WN - Display & Preroll',
+    'M_OFF_DIS_DSP_CTV_SPEND': 'Offsite Display Walmart DSP CTV',
+    'M_INSTORE_TV_WALL_SPEND': 'TV Wall',
+}
+
+SPENDS_ALL = [
+    'M_SEARCH_SPEND',
+    'M_SP_AB_SPEND', 'M_SP_KWB_SPEND', 'M_SBA_SPEND', 'M_SV_SPEND',
+    'M_ON_DIS_TOTAL_SPEND',
+    'M_ON_DIS_AT_SPEND', 'M_ON_DIS_CT_SPEND', 'M_ON_DIS_CATTO_SPEND',
+    'M_ON_DIS_KW_SPEND', 'M_ON_DIS_ROS_SPEND', 'M_ON_DIS_TOTAL_HPLO_SPEND',
+    'M_ON_DIS_HP_SPEND', 'M_ON_DIS_HPTO_SPEND', 'M_ON_DIS_HPGTO_SPEND',
+    'M_OFF_DIS_TOTAL_SPEND',
+    'M_OFF_DIS_FB_SPEND', 'M_OFF_DIS_PIN_SPEND',
+    'M_OFF_DIS_WN_WITHOUTCTV_SPEND', 'M_OFF_DIS_DSP_CTV_SPEND',
+    'M_INSTORE_TV_WALL_SPEND',
+]
+
+SPENDS_GRANULAR = [
+    'M_SP_AB_SPEND', 'M_SP_KWB_SPEND', 'M_SBA_SPEND', 'M_SV_SPEND',
+    'M_ON_DIS_AT_SPEND', 'M_ON_DIS_CT_SPEND', 'M_ON_DIS_CATTO_SPEND',
+    'M_ON_DIS_KW_SPEND', 'M_ON_DIS_ROS_SPEND', 'M_ON_DIS_TOTAL_HPLO_SPEND',
+    'M_ON_DIS_HP_SPEND', 'M_ON_DIS_HPTO_SPEND', 'M_ON_DIS_HPGTO_SPEND',
+    'M_OFF_DIS_FB_SPEND', 'M_OFF_DIS_PIN_SPEND',
+    'M_OFF_DIS_WN_WITHOUTCTV_SPEND', 'M_OFF_DIS_DSP_CTV_SPEND',
+    'M_INSTORE_TV_WALL_SPEND',
+]
+
+SPENDS_TOTAL = [
+    'M_SEARCH_SPEND', 'M_ON_DIS_TOTAL_SPEND',
+    'M_OFF_DIS_TOTAL_SPEND', 'M_INSTORE_TV_WALL_SPEND',
+]
+
+IMP_COLS_ALL = [
+    'M_SEARCH_CLK',
+    'M_SP_AB_CLK', 'M_SP_KWB_CLK', 'M_SBA_CLK', 'M_SV_CLK',
+    'M_ON_DIS_TOTAL_IMP',
+    'M_ON_DIS_AT_IMP', 'M_ON_DIS_CT_IMP', 'M_ON_DIS_CATTO_IMP',
+    'M_ON_DIS_KW_IMP', 'M_ON_DIS_ROS_IMP', 'M_ON_DIS_TOTAL_HPLO_IMP',
+    'M_ON_DIS_HP_IMP', 'M_ON_DIS_HPTO_IMP', 'M_ON_DIS_HPGTO_IMP',
+    'M_OFF_DIS_TOTAL_IMP',
+    'M_OFF_DIS_FB_IMP', 'M_OFF_DIS_PIN_IMP',
+    'M_OFF_DIS_WN_WITHOUTCTV_IMP', 'M_OFF_DIS_DSP_CTV_IMP',
+    'M_INSTORE_TV_WALL_IMP',
+]
+
+HP_SPEND = [
+    'M_ON_DIS_CATTO_SPEND', 'M_ON_DIS_TOTAL_HPLO_SPEND',
+    'M_ON_DIS_HP_SPEND', 'M_ON_DIS_HPTO_SPEND', 'M_ON_DIS_HPGTO_SPEND',
+]
+
+METRIC_TYPE = {
+    'M_SEARCH_SPEND': 'CPC', 'M_SP_AB_SPEND': 'CPC', 'M_SP_KWB_SPEND': 'CPC',
+    'M_SBA_SPEND': 'CPC', 'M_SV_SPEND': 'CPC',
+    'M_ON_DIS_TOTAL_SPEND': 'CPM', 'M_ON_DIS_AT_SPEND': 'CPM',
+    'M_ON_DIS_CT_SPEND': 'CPM',
+    'M_ON_DIS_CATTO_SPEND': 'CPD', 'M_ON_DIS_KW_SPEND': 'CPM', 'M_ON_DIS_ROS_SPEND': 'CPM',
+    'M_ON_DIS_TOTAL_HPLO_SPEND': 'CPD',
+    'M_ON_DIS_HP_SPEND': 'CPD', 'M_ON_DIS_HPTO_SPEND': 'CPD', 'M_ON_DIS_HPGTO_SPEND': 'CPD',
+    'M_OFF_DIS_TOTAL_SPEND': 'CPM', 'M_OFF_DIS_FB_SPEND': 'CPM', 'M_OFF_DIS_PIN_SPEND': 'CPM',
+    'M_OFF_DIS_WN_WITHOUTCTV_SPEND': 'CPM', 'M_OFF_DIS_DSP_CTV_SPEND': 'CPM',
+    'M_INSTORE_TV_WALL_SPEND': 'CPM',
+}
+
+# ── Helper Functions ──
+def _scalar(v):
+    if isinstance(v, (pd.Series, np.ndarray)):
+        v = v.iloc[0] if isinstance(v, pd.Series) else v.item()
+    if isinstance(v, (np.integer,)):
+        return int(v)
+    if isinstance(v, (np.floating,)):
+        return 0.0 if (np.isnan(v) or np.isinf(v)) else float(v)
+    if isinstance(v, (np.bool_,)):
+        return bool(v)
+    return v
+
+def _pct(v):
+    v = _scalar(v)
+    try:
+        f = float(v)
+        return 0.0 if (np.isnan(f) or np.isinf(f)) else round(f * 100, 1)
+    except (TypeError, ValueError):
+        return 0.0
+
+def _num(v, d=1):
+    v = _scalar(v)
+    try:
+        f = float(v)
+        return 0.0 if (np.isnan(f) or np.isinf(f)) else round(f, d)
+    except (TypeError, ValueError):
+        return 0.0
+
+def _fdate(dt_str, fmt="%b'%y"):
+    return datetime.strptime(dt_str, '%Y-%m-%d').strftime(fmt)
+
+def _safe_div(a, b):
+    return a / b if b != 0 else 0
+
+def _ks(df_ks, col, field):
+    if col not in df_ks.index or field not in df_ks.columns:
+        return 0.0
+    return _scalar(df_ks.loc[col, field])
+
+
 def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     """Preprocesses the dataframe to remove US holidays and retain the latest 32 months."""
     df = df.copy()
@@ -136,8 +257,9 @@ def generate_anomalies(df: pd.DataFrame) -> pd.DataFrame:
         )
 
         # Keep your original Z variables (unchanged logic)
-        sub_df['Z_Spend'] = (sub_df['Spend'] - (s_median + 4 * s_std)) / s_std
-        sub_df['Z_Imp'] = (sub_df['Impressions'] - (i_median + 4 * i_std)) / i_std
+        # Standard median-centered Z-scores for co-spike detection
+        sub_df['Z_Spend'] = (sub_df['Spend'] - s_median) / s_std
+        sub_df['Z_Imp'] = (sub_df['Impressions'] - i_median) / i_std
 
         tactic_z_sum = 0
         anomaly_count = 0
@@ -176,7 +298,7 @@ def generate_anomalies(df: pd.DataFrame) -> pd.DataFrame:
         # =====================================================
         # OUTPUTFILE 2 – No Spend (Vectorized)
         # =====================================================
-        ns_mask = (sub_df['Spend'] == 0) & (sub_df['Impressions'] > 0)
+        ns_mask = (sub_df['Spend'] == 0) & (sub_df['Impressions'] > i_95)
         ns_df = sub_df[ns_mask].copy()
         if not ns_df.empty:
             for _, row in ns_df.iterrows():
@@ -246,6 +368,14 @@ def generate_anomalies(df: pd.DataFrame) -> pd.DataFrame:
     if results_df.empty:
         return results_df
 
+    # Deduplication: keep only the highest-priority anomaly per (date, tactic)
+    results_df = (
+        results_df
+        .sort_values('Priority', ascending=False)
+        .drop_duplicates(subset=['Tactic_Prefix', 'Anomaly Date'], keep='first')
+        .reset_index(drop=True)
+    )
+
     severity_df = pd.DataFrame(tactic_severity_tracker)
     if not severity_df.empty:
         severity_df = severity_df.sort_values('Severity_Score', ascending=False)
@@ -271,8 +401,6 @@ def generate_anomalies(df: pd.DataFrame) -> pd.DataFrame:
         results_df['Anomaly Date'] = pd.to_datetime(results_df['Anomaly Date'])
         results_df = results_df.sort_values(['Anomaly Date', 'Severity_Score'], ascending=[False, False])
         results_df['Anomaly Date'] = results_df['Anomaly Date'].dt.strftime('%Y-%m-%d')
-
-    return results_df
 
     return results_df
 
@@ -451,15 +579,88 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
         
     df = preprocess_data(df)
     
+    # ── Derive aggregate columns ──
+    for col in ['M_INSTORE_TV_WALL_SPEND', 'M_INSTORE_TV_WALL_IMP',
+                'M_ON_DIS_HPLO_SPEND', 'M_ON_DIS_APP_HPLO_SPEND',
+                'M_ON_DIS_HPLO_IMP', 'M_ON_DIS_APP_HPLO_IMP']:
+        if col not in df.columns:
+            df[col] = 0
+
+    derived = pd.DataFrame(index=df.index)
+    derived['M_SEARCH_SPEND'] = df.get('M_SP_AB_SPEND', 0) + df.get('M_SP_KWB_SPEND', 0) + df.get('M_SBA_SPEND', 0) + df.get('M_SV_SPEND', 0)
+    derived['M_ON_DIS_TOTAL_SPEND'] = (
+        df.get('M_ON_DIS_AT_SPEND', 0) + df.get('M_ON_DIS_CT_SPEND', 0) + df.get('M_ON_DIS_CATTO_SPEND', 0) +
+        df.get('M_ON_DIS_KW_SPEND', 0) + df.get('M_ON_DIS_ROS_SPEND', 0) + df.get('M_ON_DIS_HPLO_SPEND', 0) +
+        df.get('M_ON_DIS_APP_HPLO_SPEND', 0) + df.get('M_ON_DIS_HP_SPEND', 0) + df.get('M_ON_DIS_HPTO_SPEND', 0) +
+        df.get('M_ON_DIS_HPGTO_SPEND', 0)
+    )
+    derived['M_OFF_DIS_TOTAL_SPEND'] = (
+        df.get('M_OFF_DIS_FB_SPEND', 0) + df.get('M_OFF_DIS_PIN_SPEND', 0) +
+        df.get('M_OFF_DIS_WN_WITHOUTCTV_SPEND', 0) + df.get('M_OFF_DIS_DSP_CTV_SPEND', 0)
+    )
+    derived['M_ON_DIS_TOTAL_HPLO_SPEND'] = df.get('M_ON_DIS_HPLO_SPEND', 0) + df.get('M_ON_DIS_APP_HPLO_SPEND', 0)
+    derived['M_ON_DIS_TOTAL_HPLO_IMP'] = df.get('M_ON_DIS_HPLO_IMP', 0) + df.get('M_ON_DIS_APP_HPLO_IMP', 0)
+    derived['M_SEARCH_CLK'] = df.get('M_SP_AB_CLK', 0) + df.get('M_SP_KWB_CLK', 0) + df.get('M_SBA_CLK', 0) + df.get('M_SV_CLK', 0)
+    derived['M_ON_DIS_TOTAL_IMP'] = (
+        df.get('M_ON_DIS_AT_IMP', 0) + df.get('M_ON_DIS_CT_IMP', 0) + df.get('M_ON_DIS_CATTO_IMP', 0) +
+        df.get('M_ON_DIS_KW_IMP', 0) + df.get('M_ON_DIS_ROS_IMP', 0) + df.get('M_ON_DIS_HPLO_IMP', 0) +
+        df.get('M_ON_DIS_APP_HPLO_IMP', 0) + df.get('M_ON_DIS_HP_IMP', 0) + df.get('M_ON_DIS_HPTO_IMP', 0) +
+        df.get('M_ON_DIS_HPGTO_IMP', 0)
+    )
+    derived['M_OFF_DIS_TOTAL_IMP'] = (
+        df.get('M_OFF_DIS_FB_IMP', 0) + df.get('M_OFF_DIS_PIN_IMP', 0) +
+        df.get('M_OFF_DIS_WN_WITHOUTCTV_IMP', 0) + df.get('M_OFF_DIS_DSP_CTV_IMP', 0)
+    )
+    derived['Total_spends'] = derived['M_SEARCH_SPEND'] + derived['M_ON_DIS_TOTAL_SPEND'] + derived['M_OFF_DIS_TOTAL_SPEND'] + df['M_INSTORE_TV_WALL_SPEND']
+
+    cols_to_update = derived.columns
+    df = df.drop(columns=[c for c in cols_to_update if c in df.columns])
+    df = pd.concat([df, derived], axis=1)
+
+    # ── Time Periods (3-period split) ──
+    if 'INDEX' in df.columns:
+        modeling_end_date = df['INDEX'].max()
+        modeling_end = modeling_end_date.strftime('%Y-%m-%d')
+        modeling_start_date = (modeling_end_date - pd.DateOffset(months=31)).replace(day=1)
+        modeling_start = modeling_start_date.strftime('%Y-%m-%d')
+
+        ly_end = modeling_end
+        ly_start_date = (modeling_end_date - pd.DateOffset(months=11)).replace(day=1)
+        ly_start = ly_start_date.strftime('%Y-%m-%d')
+
+        py_end_date = ly_start_date - pd.DateOffset(days=1)
+        py_end = py_end_date.strftime('%Y-%m-%d')
+        py_start_date = (py_end_date - pd.DateOffset(months=11)).replace(day=1)
+        py_start = py_start_date.strftime('%Y-%m-%d')
+
+        other_end_date = py_start_date - pd.DateOffset(days=1)
+        other_end = other_end_date.strftime('%Y-%m-%d')
+        other_start = modeling_start
+
+        other_time = f"{_fdate(other_start)} - {_fdate(other_end)}"
+        py_time = f"{_fdate(py_start)} - {_fdate(py_end)}"
+        ly_time = f"{_fdate(ly_start)} - {_fdate(ly_end)}"
+
+        df = df[(df['INDEX'] >= modeling_start) & (df['INDEX'] <= modeling_end)].copy()
+        df['year_flag'] = np.where(
+            (df['INDEX'] >= ly_start) & (df['INDEX'] <= ly_end), 'LY',
+            np.where((df['INDEX'] >= py_start) & (df['INDEX'] <= py_end), 'PY', 'other')
+        )
+        periods = ['other', 'PY', 'LY']
+        periods_map = {'other': other_time, 'PY': py_time, 'LY': ly_time}
+    else:
+        periods = []
+        periods_map = {}
+        modeling_start = 'N/A'
+        modeling_end = 'N/A'
+
     # 1. Prepare time series for chart
     if 'INDEX' in df.columns:
         df['date'] = df['INDEX'].dt.strftime('%Y-%m-%d')
     else:
         df['date'] = df.index.astype(str)
         
-    # Grab tactics for charting (excluding non-numerics)
     cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
-    
     time_series = df[['date'] + cols].to_dict(orient='records')
     
     # 2. Generate Anomalies
@@ -467,11 +668,136 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
     
     anomalies_list = []
     if not anomalies_df.empty:
-        # Clean NaNs
         anomalies_df = anomalies_df.replace({np.nan: None})
         anomalies_list = anomalies_df.to_dict(orient='records')
-        
-    # 3. Extract Metadata before grouping
+
+    # ══════════════════════════════════════════════════════
+    # ANALYSIS COMPUTATIONS (ported from old version)
+    # ══════════════════════════════════════════════════════
+    yoy_change = {}
+    overall_period = {}
+    key_metrics_summary = []
+    media_mix = []
+    on_air_analysis = []
+    value_added = []
+    time_periods_out = {}
+
+    if periods and 'year_flag' in df.columns:
+        try:
+            # ── YOY Change % ──
+            t1 = df[['year_flag', 'O_UNIT', 'O_SALE', 'Total_spends']].groupby('year_flag').sum(numeric_only=True).T
+            if 'LY' in t1.columns and 'PY' in t1.columns:
+                t1['YOY %'] = (t1['LY'] / t1['PY']) - 1
+            else:
+                t1['YOY %'] = 0
+
+            yoy_change = {
+                'omni_unit_sales': _pct(t1.at['O_UNIT', 'YOY %']) if 'O_UNIT' in t1.index else 0,
+                'omni_gmv': _pct(t1.at['O_SALE', 'YOY %']) if 'O_SALE' in t1.index else 0,
+                'wmc_spends': _pct(t1.at['Total_spends', 'YOY %']) if 'Total_spends' in t1.index else 0,
+            }
+
+            # ── Key Metrics ──
+            t2_cols = ['year_flag', 'O_UNIT', 'O_UNIT_OG', 'O_UNIT_DOTCOM',
+                       'O_SALE', 'O_SALE_OG', 'O_SALE_DOTCOM', 'Total_spends']
+            t2_cols_present = [c for c in t2_cols if c in df.columns]
+            t2 = df[t2_cols_present].groupby('year_flag').sum(numeric_only=True)
+            if 'O_UNIT_OG' in t2.columns and 'O_UNIT_DOTCOM' in t2.columns:
+                t2['O_UNIT_ONLINE'] = t2['O_UNIT_OG'] + t2['O_UNIT_DOTCOM']
+            else:
+                t2['O_UNIT_ONLINE'] = 0
+            if 'O_SALE_OG' in t2.columns and 'O_SALE_DOTCOM' in t2.columns:
+                t2['O_SALE_ONLINE'] = t2['O_SALE_OG'] + t2['O_SALE_DOTCOM']
+            else:
+                t2['O_SALE_ONLINE'] = 0
+            t2['spends/sales'] = t2['Total_spends'] / t2['O_SALE'].replace(0, np.nan)
+            t2['price'] = t2['O_SALE'] / t2['O_UNIT'].replace(0, np.nan)
+            t2['online unit sales%'] = t2['O_UNIT_ONLINE'] / t2['O_UNIT'].replace(0, np.nan)
+            t2['online gmv sales%'] = t2['O_SALE_ONLINE'] / t2['O_SALE'].replace(0, np.nan)
+
+            overall_period = {
+                'wmc_penetration': _pct(_safe_div(t2['Total_spends'].sum(), t2['O_SALE'].sum())),
+                'price': _num(_safe_div(t2['O_SALE'].sum(), t2['O_UNIT'].sum()), 1),
+                'unit_sales_online': _pct(_safe_div(t2['O_UNIT_ONLINE'].sum(), t2['O_UNIT'].sum())),
+                'gmv_sales_online': _pct(_safe_div(t2['O_SALE_ONLINE'].sum(), t2['O_SALE'].sum())),
+            }
+
+            for p in periods:
+                if p in t2.index:
+                    row = t2.loc[p]
+                    key_metrics_summary.append({
+                        'period': periods_map[p],
+                        'online_unit_sales': _pct(row['online unit sales%']),
+                        'online_gmv_sales': _pct(row['online gmv sales%']),
+                        'wmc_penetration': _pct(row['spends/sales']),
+                        'price': _num(row['price'], 1),
+                    })
+
+            if 'LY' in t2.index and 'PY' in t2.index:
+                ly_r, py_r = t2.loc['LY'], t2.loc['PY']
+                key_metrics_summary.append({
+                    'period': 'Change YOY %',
+                    'online_unit_sales': _pct(_safe_div(ly_r['O_UNIT_ONLINE'], py_r['O_UNIT_ONLINE']) - 1),
+                    'online_gmv_sales': _pct(_safe_div(ly_r['O_SALE_ONLINE'], py_r['O_SALE_ONLINE']) - 1),
+                    'wmc_penetration': _pct(_safe_div(ly_r['spends/sales'], py_r['spends/sales']) - 1),
+                    'price': _pct(_safe_div(ly_r['price'], py_r['price']) - 1),
+                })
+
+            # ── Media Mix ──
+            t3_cols = ['year_flag', 'M_SEARCH_SPEND', 'M_ON_DIS_TOTAL_SPEND', 'M_OFF_DIS_TOTAL_SPEND', 'M_INSTORE_TV_WALL_SPEND']
+            t3_cols_present = [c for c in t3_cols if c in df.columns]
+            t3 = df[t3_cols_present].groupby('year_flag').sum(numeric_only=True)
+            t3['total'] = t3.sum(axis=1)
+            for c in ['M_SEARCH_SPEND', 'M_ON_DIS_TOTAL_SPEND', 'M_OFF_DIS_TOTAL_SPEND', 'M_INSTORE_TV_WALL_SPEND']:
+                if c in t3.columns:
+                    t3[f'{c}_%'] = t3[c] / t3['total'].replace(0, np.nan)
+
+            for p in periods:
+                if p in t3.index:
+                    media_mix.append({
+                        'period': periods_map[p],
+                        'search': _pct(t3.at[p, 'M_SEARCH_SPEND_%']) if 'M_SEARCH_SPEND_%' in t3.columns else 0,
+                        'onsite_display': _pct(t3.at[p, 'M_ON_DIS_TOTAL_SPEND_%']) if 'M_ON_DIS_TOTAL_SPEND_%' in t3.columns else 0,
+                        'offsite_display': _pct(t3.at[p, 'M_OFF_DIS_TOTAL_SPEND_%']) if 'M_OFF_DIS_TOTAL_SPEND_%' in t3.columns else 0,
+                        'tv_wall': _pct(t3.at[p, 'M_INSTORE_TV_WALL_SPEND_%']) if 'M_INSTORE_TV_WALL_SPEND_%' in t3.columns else 0,
+                    })
+
+            # ── On-Air / Off-Air ──
+            total_days = len(df)
+            granular_present = [c for c in SPENDS_GRANULAR if c in df.columns]
+            if granular_present and total_days > 0:
+                oad_data = df[granular_present].apply(lambda x: (x > 0).sum())
+                for col in granular_present:
+                    label = TACTIC_LABELS.get(col, col)
+                    oad = int(oad_data[col])
+                    on_pct = _safe_div(oad, total_days)
+                    on_air_analysis.append({'name': label, 'oad': oad, 'on_air': _pct(on_pct), 'off_air': _pct(1 - on_pct)})
+
+            # ── Value Added ──
+            for s, i in zip(SPENDS_ALL, IMP_COLS_ALL):
+                if s not in df.columns or i not in df.columns:
+                    continue
+                df_zero = df[(df[i] != 0) & (df[s] == 0)]
+                total_imp = df[i].sum()
+                av_imp = df_zero[i].sum()
+                if av_imp == 0:
+                    continue
+                value_added.append({
+                    'tactic': TACTIC_LABELS.get(s, i),
+                    'total_imp': _scalar(total_imp),
+                    'av_imp': _scalar(av_imp),
+                    'pct_av': _num(_safe_div(av_imp, total_imp) * 100, 1),
+                    'num_days': int(df_zero['INDEX'].nunique()) if 'INDEX' in df_zero.columns else 0,
+                })
+            value_added.sort(key=lambda x: x['av_imp'], reverse=True)
+
+            time_periods_out = {'other': periods_map.get('other', ''), 'py': periods_map.get('PY', ''), 'ly': periods_map.get('LY', '')}
+        except Exception as analysis_ex:
+            print(f"[WARNING] Analysis computation failed (non-fatal): {analysis_ex}")
+            import traceback
+            traceback.print_exc()
+
+    # 3. Extract Metadata
     subcategories = "Mixed"
     l2_list = db_metadata.get("l2_list", [])
     num_brands = db_metadata.get("num_brands", 0)
@@ -479,7 +805,6 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
     if l2_list:
         subcategories = ", ".join(l2_list)
 
-    # PRIMARY: read from stack_metadata.json (fallback for old models without DB record)
     if not l2_list:
         metadata_path = os.path.join(project_dir, "stack_metadata.json")
         if os.path.exists(metadata_path):
@@ -492,7 +817,6 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
             except Exception as e:
                 print(f"[WARNING] Could not read stack_metadata.json: {e}")
 
-    # FALLBACK: scan cleanbrand_agg.csv for L2 column
     if not l2_list:
         cleanbrand_path = os.path.join(project_dir, "cleanbrand_agg.csv")
         if os.path.exists(cleanbrand_path):
@@ -516,7 +840,6 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
     if 'BRAND' in df.columns and num_brands == 0:
         num_brands = df['BRAND'].nunique()
     
-    # Fallback: final_model_data.csv
     final_data_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "data", project_name, "L3 Output", "final_model_data.csv"))
     if os.path.exists(final_data_path) and not l2_list:
         try:
@@ -549,7 +872,14 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
             "l2_list": l2_list,
             "num_brands": int(num_brands) if num_brands else 0,
             "agent_insights": cached_insights
-        }
+        },
+        "yoy_change": yoy_change,
+        "overall_period": overall_period,
+        "key_metrics_summary": key_metrics_summary,
+        "media_mix": media_mix,
+        "on_air_analysis": on_air_analysis,
+        "value_added": value_added,
+        "time_periods": time_periods_out,
     }
     
     # 5. Save to DB-backed cache

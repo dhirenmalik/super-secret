@@ -110,7 +110,7 @@ const Sk = ({ w = 'w-16', h = 'h-3.5' }) => (
 );
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-export default function MediaTacticsTable({ metrics, isLoading = false }) {
+export default function MediaTacticsTable({ metrics, isLoading = false, oadRows: backendOadRows }) {
     const [showOad, setShowOad] = useState(false);
     const [yoyShowNumbers, setYoyShowNumbers] = useState(false);
 
@@ -304,7 +304,35 @@ export default function MediaTacticsTable({ metrics, isLoading = false }) {
             </div>
 
             {/* OAD Table */}
-            {showOad && <OadTable rows={enrichedRows} />}
+            {showOad && backendOadRows?.length > 0 ? (
+                <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                    <div className="bg-slate-700 px-4 py-3">
+                        <h3 className="text-white text-xs font-extrabold uppercase tracking-widest">OAD (On-Air Days) Analysis</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="bg-slate-100 border-b border-slate-200">
+                                    <th className="px-4 py-2 text-left font-bold text-slate-600 uppercase tracking-wider">Media</th>
+                                    <th className="px-4 py-2 text-center font-bold text-slate-600 uppercase tracking-wider">OAD</th>
+                                    <th className="px-4 py-2 text-center font-bold text-indigo-600 uppercase tracking-wider">On_air</th>
+                                    <th className="px-4 py-2 text-center font-bold text-rose-500 uppercase tracking-wider">Off_air</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {backendOadRows.map((row, i) => (
+                                    <tr key={i} className={`border-b border-slate-100 hover:bg-slate-50 ${row.oad === 0 ? 'text-rose-400' : 'text-slate-700'}`}>
+                                        <td className="px-4 py-2">{row.name}</td>
+                                        <td className="px-4 py-2 text-center font-mono">{row.oad}</td>
+                                        <td className="px-4 py-2 text-center font-mono">{row.on_air}%</td>
+                                        <td className="px-4 py-2 text-center font-mono">{row.off_air}%</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ) : showOad && <OadTable rows={enrichedRows} />}
         </div>
     );
 }

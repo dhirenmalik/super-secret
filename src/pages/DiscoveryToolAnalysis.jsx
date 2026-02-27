@@ -10,7 +10,7 @@ import steps from '../data/steps';
 import ModelGallery from '../components/ModelGallery';
 import MediaTacticsTable from '../components/discovery/MediaTacticsTable';
 import AgentInsights from '../components/discovery/AgentInsights';
-import SummarySheet from '../components/eda/SummarySheet';
+import ChartTab from '../components/discovery/ChartTab';
 import { Target, Search, Loader2, Activity, TrendingUp, BarChart2, Layers, ArrowRight, Bot, Layout, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -317,7 +317,6 @@ export default function DiscoveryToolAnalysis() {
                             {[
                                 { id: 'analysis', label: 'Analysis Trends', icon: Activity },
                                 { id: 'observations', label: 'AI Observations', icon: Bot },
-                                { id: 'summary', label: 'Metric Summary', icon: Layout },
                             ].map((tab) => {
                                 const Icon = tab.icon;
                                 const isActive = activeTab === tab.id;
@@ -553,8 +552,85 @@ export default function DiscoveryToolAnalysis() {
                                         </div>
 
                                         <div className="mt-8">
-                                            <MediaTacticsTable metrics={isLoadingDiscovery ? null : metrics} isLoading={isLoadingDiscovery} />
+                                            <MediaTacticsTable metrics={isLoadingDiscovery ? null : metrics} isLoading={isLoadingDiscovery} oadRows={discoveryData?.on_air_analysis} />
                                         </div>
+
+                                        {/* Chart Explorer */}
+                                        {discoveryData && !isLoadingDiscovery && (
+                                            <div className="mt-8">
+                                                <ChartTab
+                                                    chartData={discoveryData}
+                                                    activeTacticFilter={tacticFilter}
+                                                    anomaliesTable={discoveryData?.anomalies}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Media Mix */}
+                                        {discoveryData?.media_mix?.length > 0 && (
+                                            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="mt-8 card shadow-sm">
+                                                <div className="p-6">
+                                                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                                                        <table className="w-full text-sm">
+                                                            <thead>
+                                                                <tr><th colSpan="5" className="px-4 py-3 text-xs font-extrabold text-white bg-indigo-600 uppercase tracking-wider text-center shadow-inner">Media Mix (%)</th></tr>
+                                                                <tr className="bg-slate-50">
+                                                                    <th className={thClass}>Period</th>
+                                                                    <th className={thClass + " text-center"}>Search</th>
+                                                                    <th className={thClass + " text-center"}>Onsite Display</th>
+                                                                    <th className={thClass + " text-center"}>Offsite Display</th>
+                                                                    <th className={thClass + " text-center"}>TV Wall</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {discoveryData.media_mix.map((row, i) => (
+                                                                    <tr key={i} className={row.period === 'Change YOY %' ? 'bg-slate-50/80 font-semibold' : 'hover:bg-slate-50 transition-colors'}>
+                                                                        <td className={tdClassBold}>{row.period}</td>
+                                                                        <td className={tdClass + " text-center font-mono"}>{row.search}%</td>
+                                                                        <td className={tdClass + " text-center font-mono"}>{row.onsite_display}%</td>
+                                                                        <td className={tdClass + " text-center font-mono"}>{row.offsite_display}%</td>
+                                                                        <td className={tdClass + " text-center font-mono"}>{row.tv_wall}%</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+
+                                        {/* Value Added */}
+                                        {discoveryData?.value_added?.length > 0 && (
+                                            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }} className="mt-8 card shadow-sm">
+                                                <div className="p-6">
+                                                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                                                        <table className="w-full text-sm">
+                                                            <thead>
+                                                                <tr><th colSpan="5" className="px-4 py-3 text-xs font-extrabold text-white bg-emerald-600 uppercase tracking-wider text-center shadow-inner">Value Added Impressions (Zero Spend)</th></tr>
+                                                                <tr className="bg-slate-50">
+                                                                    <th className={thClass}>Tactic</th>
+                                                                    <th className={thClass + " text-center"}>Total Impressions</th>
+                                                                    <th className={thClass + " text-center"}>Added Value Imp.</th>
+                                                                    <th className={thClass + " text-center"}>% Added Value</th>
+                                                                    <th className={thClass + " text-center"}>Days</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {discoveryData.value_added.map((row, i) => (
+                                                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                                        <td className={tdClassBold}>{row.tactic}</td>
+                                                                        <td className={tdClass + " text-center font-mono"}>{row.total_imp >= 1e6 ? `${(row.total_imp / 1e6).toFixed(1)}M` : row.total_imp >= 1e3 ? `${(row.total_imp / 1e3).toFixed(0)}K` : row.total_imp}</td>
+                                                                        <td className={tdClass + " text-center font-mono text-emerald-600 font-semibold"}>{row.av_imp >= 1e6 ? `${(row.av_imp / 1e6).toFixed(1)}M` : row.av_imp >= 1e3 ? `${(row.av_imp / 1e3).toFixed(0)}K` : row.av_imp}</td>
+                                                                        <td className={tdClass + " text-center font-mono"}>{row.pct_av}%</td>
+                                                                        <td className={tdClass + " text-center font-mono"}>{row.num_days}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
                                     </div>
                                 )}
 
@@ -573,9 +649,7 @@ export default function DiscoveryToolAnalysis() {
                                     />
                                 )}
 
-                                {activeTab === 'summary' && (
-                                    <SummarySheet summary={discoveryData?.summary || { part3: [] }} />
-                                )}
+
 
                                 {/* Action Bar */}
                                 <div className="flex justify-end pt-8 pb-8 border-t border-slate-100">
