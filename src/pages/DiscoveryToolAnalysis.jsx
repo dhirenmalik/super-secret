@@ -50,7 +50,18 @@ export default function DiscoveryToolAnalysis() {
     const [activeTab, setActiveTab] = useState('analysis'); // 'analysis', 'observations', 'summary'
     const [tacticFilter, setTacticFilter] = useState('All');
     const [severityFilter, setSeverityFilter] = useState('All');
+    const [chartTabActive, setChartTabActive] = useState('units_trend');
     const navigate = useNavigate();
+
+    const CHART_TABS = [
+        { key: 'units_trend', label: 'Units Trend' },
+        { key: 'units_vs_spends', label: 'Units vs Spends' },
+        { key: 'spends_vs_imps', label: 'Spends vs Imps' },
+        { key: 'units_vs_search', label: 'Units vs Search' },
+        { key: 'units_vs_onsite', label: 'Units vs Onsite Display' },
+        { key: 'units_vs_offsite', label: 'Units vs Offsite Display' },
+        { key: 'units_vs_instore', label: 'Units vs Instore' },
+    ];
 
     // Reset L2 selection whenever a new model is loaded
     useEffect(() => {
@@ -557,11 +568,35 @@ export default function DiscoveryToolAnalysis() {
 
                                         {/* Chart Explorer */}
                                         {discoveryData && !isLoadingDiscovery && (
-                                            <div className="mt-8">
+                                            <div className="mt-8 card shadow-sm p-6">
+                                                <h3 className="text-lg font-bold text-slate-800 mb-6">Comparative Charts</h3>
+                                                <div className="mb-6 border-b border-slate-200">
+                                                    <div className="flex gap-6 overflow-x-auto">
+                                                        {CHART_TABS.map((t) => (
+                                                            <button
+                                                                key={t.key}
+                                                                type="button"
+                                                                onClick={() => setChartTabActive(t.key)}
+                                                                className={`whitespace-nowrap pb-3 text-sm font-semibold transition border-b-2 ${chartTabActive === t.key
+                                                                    ? 'border-indigo-600 text-indigo-600'
+                                                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                                                                    }`}
+                                                            >
+                                                                {t.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                                 <ChartTab
-                                                    chartData={discoveryData}
+                                                    key={chartTabActive}
+                                                    chartData={discoveryData?.charts?.[chartTabActive] || {
+                                                        columns: discoveryData?.columns || [],
+                                                        time_series: discoveryData?.time_series || [],
+                                                        period_agg: {}
+                                                    }}
                                                     activeTacticFilter={tacticFilter}
                                                     anomaliesTable={discoveryData?.anomalies}
+                                                    anomalies={discoveryData?.anomalies}
                                                 />
                                             </div>
                                         )}

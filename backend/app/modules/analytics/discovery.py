@@ -1,18 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
+from datetime import datetime
 import pandas as pd
 import numpy as np
 import holidays
-from datetime import datetime
+from typing import Dict, Any, List
 import json
 import os
 
 from app.core.database import get_db
 from app.core.rbac import get_current_user
-from app.modules.governance.models import ModelFile
-from app.modules.analytics import schemas, service
-from .models import DiscoveryStack, DiscoveryStackData, DiscoveryAnalysisCache
+from app.modules.governance.models import Model
+from app.modules.analytics import models
+from app.modules.analytics.models import DiscoveryStack, DiscoveryStackData, DiscoveryAnalysisCache
 
 # Define Tactics Columns
 SPEND_COLS = [
@@ -114,6 +114,18 @@ METRIC_TYPE = {
     'M_INSTORE_TV_WALL_SPEND': 'CPM',
 }
 
+# ── Chart sheet column definitions (matching template exactly) ──
+CHART_UNITS_TREND = ['O_SALE', 'O_UNIT', 'O_SALE_OG', 'O_SALE_DOTCOM', 'O_UNIT_OG', 'O_UNIT_DOTCOM']
+CHART_UNITS_VS_SPENDS = ['O_UNIT', 'M_SEARCH_SPEND', 'M_ON_DIS_TOTAL_SPEND', 'M_OFF_DIS_TOTAL_SPEND', 'M_INSTORE_TV_WALL_SPEND', 'Total_spends']
+CHART_SPENDS_VS_IMPS = ['M_SP_AB_CLK', 'M_SP_AB_SPEND', 'M_SP_KWB_CLK', 'M_SP_KWB_SPEND', 'M_SBA_CLK', 'M_SBA_SPEND', 'M_SV_CLK', 'M_SV_SPEND',
+                         'M_ON_DIS_AT_IMP', 'M_ON_DIS_AT_SPEND', 'M_ON_DIS_CT_IMP', 'M_ON_DIS_CT_SPEND',
+                         'M_OFF_DIS_FB_IMP', 'M_OFF_DIS_FB_SPEND', 'M_OFF_DIS_PIN_IMP', 'M_OFF_DIS_PIN_SPEND']
+CHART_UNITS_VS_SEARCH = ['O_UNIT', 'M_SP_AB_CLK', 'M_SP_KWB_CLK', 'M_SBA_CLK', 'M_SV_CLK']
+CHART_UNITS_VS_ONSITE = ['O_UNIT', 'M_ON_DIS_AT_IMP', 'M_ON_DIS_CT_IMP', 'M_ON_DIS_KW_IMP', 'M_ON_DIS_HP_IMP',
+                          'M_ON_DIS_ROS_IMP', 'M_ON_DIS_HPLO_IMP', 'M_ON_DIS_APP_HPLO_IMP']
+CHART_UNITS_VS_OFFSITE = ['O_UNIT', 'M_OFF_DIS_WN_WITHOUTCTV_IMP', 'M_OFF_DIS_DSP_CTV_IMP', 'M_OFF_DIS_FB_IMP', 'M_OFF_DIS_PIN_IMP']
+CHART_UNITS_VS_INSTORE = ['O_UNIT', 'M_INSTORE_TV_WALL_IMP', 'M_INSTORE_TV_WALL_SPEND']
+
 # ── Helper Functions ──
 def _scalar(v):
     if isinstance(v, (pd.Series, np.ndarray)):
@@ -126,19 +138,19 @@ def _scalar(v):
         return bool(v)
     return v
 
-def _pct(v):
+def _pct(v) -> float:
     v = _scalar(v)
     try:
         f = float(v)
-        return 0.0 if (np.isnan(f) or np.isinf(f)) else round(f * 100, 1)
+        return 0.0 if (np.isnan(f) or np.isinf(f)) else round(f * 100.0, 1)
     except (TypeError, ValueError):
         return 0.0
 
-def _num(v, d=1):
+def _num(v, d=1) -> float:
     v = _scalar(v)
     try:
         f = float(v)
-        return 0.0 if (np.isnan(f) or np.isinf(f)) else round(f, d)
+        return 0.0 if (np.isnan(f) or np.isinf(f)) else float(round(f, d)) # type: ignore
     except (TypeError, ValueError):
         return 0.0
 
@@ -152,6 +164,54 @@ def _ks(df_ks, col, field):
     if col not in df_ks.index or field not in df_ks.columns:
         return 0.0
     return _scalar(df_ks.loc[col, field])
+
+
+def _build_chart_series(df, columns, periods_map=None):
+    """Build time-series data + period aggregates for chart sheets."""
+    if periods_map is None:
+        periods_map = {}
+    
+    # Build list of valid columns that exist in df
+    valid_cols = [c for c in columns if c in df.columns]
+
+    # Columns needed for the time series slice
+    ts_base_cols = ['INDEX']
+    if 'year_flag' in df.columns:
+        ts_base_cols.append('year_flag')
+    
+    df_ts = df[ts_base_cols + valid_cols].copy()
+
+    # Ensure INDEX is datetime
+    if not np.issubdtype(df_ts['INDEX'].dtype, np.datetime64):
+        df_ts['INDEX'] = pd.to_datetime(df_ts['INDEX'], errors='coerce')
+    
+    df_ts = df_ts.dropna(subset=['INDEX']).sort_values('INDEX')
+    
+    time_series = []
+    for _, row in df_ts.iterrows():
+        date_str = row['INDEX'].strftime('%Y-%m-%d')
+        point: Dict[str, Any] = {'date': date_str}
+        for c in valid_cols:
+            if c in row.index:
+                point[c] = _scalar(row[c])
+        time_series.append(point)
+
+    # Period aggregates
+    period_agg: Dict[str, Dict[str, Any]] = {}
+    if 'year_flag' in df.columns:
+        for flag, label in periods_map.items():
+            sub = df[df['year_flag'] == flag]
+            period_agg[label] = {}
+            if len(sub) > 0:
+                weeks = (sub['INDEX'].max() - sub['INDEX'].min()).days / 7.0
+                period_agg[label]['Weeks'] = round(weeks, 1) if weeks > 0 else 0.0
+            else:
+                period_agg[label]['Weeks'] = 0.0
+            for c in valid_cols:
+                if c in sub.columns:
+                    period_agg[label][c] = _scalar(sub[c].sum())
+
+    return {'time_series': time_series, 'period_agg': period_agg, 'columns': valid_cols}
 
 
 def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
@@ -338,7 +398,7 @@ def generate_anomalies(df: pd.DataFrame) -> pd.DataFrame:
                         'Impressions': round(row['Impressions'], 1),
                         'Spend': round(row['Spend'], 1),
                         'CPM': round(row['CPM'], 1),
-                        'Z': round(row['Z_CPM'], 2),
+                        'Z': round(row['CPM'], 2),
                         'Brands_list': "Various Brands",
                         'SourceFile': 'CPM_anomalies'
                     })
@@ -506,6 +566,19 @@ Data:
         import traceback
         traceback.print_exc()
         return f"Insight generation failed during LLM formatting call. Error: {str(e)}"
+
+router = APIRouter()
+
+@router.get("/discovery/{model_id}")
+async def fetch_discovery_data_api(model_id: int, force_refresh: bool = False, db: Session = Depends(get_db)):
+    """API endpoint to get processed discovery data."""
+    try:
+        data = get_discovery_data(db, model_id, force_refresh)
+        return data
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) -> Dict[str, Any]:
     """
@@ -681,6 +754,7 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
     on_air_analysis = []
     value_added = []
     time_periods_out = {}
+    charts = {}
 
     if periods and 'year_flag' in df.columns:
         try:
@@ -797,6 +871,23 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
             import traceback
             traceback.print_exc()
 
+    # ── Chart Data (7 chart sheets) ──
+    try:
+        charts = {
+            'units_trend': _build_chart_series(df, CHART_UNITS_TREND, periods_map),
+            'units_vs_spends': _build_chart_series(df, CHART_UNITS_VS_SPENDS, periods_map),
+            'spends_vs_imps': _build_chart_series(df, CHART_SPENDS_VS_IMPS, periods_map),
+            'units_vs_search': _build_chart_series(df, CHART_UNITS_VS_SEARCH, periods_map),
+            'units_vs_onsite': _build_chart_series(df, CHART_UNITS_VS_ONSITE, periods_map),
+            'units_vs_offsite': _build_chart_series(df, CHART_UNITS_VS_OFFSITE, periods_map),
+            'units_vs_instore': _build_chart_series(df, CHART_UNITS_VS_INSTORE, periods_map),
+            'all_tactics': _build_chart_series(df, SPENDS_ALL + IMP_COLS_ALL, periods_map),
+        }
+    except Exception as charts_ex:
+        print(f"[WARNING] Charts computation failed: {charts_ex}")
+        import traceback
+        traceback.print_exc()
+
     # 3. Extract Metadata
     subcategories = "Mixed"
     l2_list = db_metadata.get("l2_list", [])
@@ -880,6 +971,7 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
         "on_air_analysis": on_air_analysis,
         "value_added": value_added,
         "time_periods": time_periods_out,
+        "charts": charts,
     }
     
     # 5. Save to DB-backed cache

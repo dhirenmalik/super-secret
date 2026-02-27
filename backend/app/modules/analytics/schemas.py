@@ -267,6 +267,14 @@ class DiscoveryChartResponse(BaseModel):
     time_series: List[Dict[str, Any]]
     anomalies: List[Dict[str, Any]]
     metadata: Optional[Dict[str, Any]] = None
+    yoy_change: Optional[Dict[str, Any]] = None
+    overall_period: Optional[Dict[str, Any]] = None
+    key_metrics_summary: Optional[List[Dict[str, Any]]] = None
+    media_mix: Optional[List[Dict[str, Any]]] = None
+    on_air_analysis: Optional[List[Dict[str, Any]]] = None
+    value_added: Optional[List[Dict[str, Any]]] = None
+    time_periods: Optional[Dict[str, Any]] = None
+    charts: Optional[Dict[str, Any]] = None
 
 class AnomalyRecord(BaseModel):
     Tactic_Prefix: str

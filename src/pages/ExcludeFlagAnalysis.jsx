@@ -371,24 +371,65 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
                                 </button>
                             </div>
 
-                            {/* Subcategory Level Toggle - Only visible in Phase 1 */}
+                            {/* Phase 1 Subcategory Selection Tools */}
                             {currentPhase === 1 && viewMode === 'subcategory' && (
-                                <div className="ml-2 flex items-center p-1 bg-slate-100/80 backdrop-blur-md rounded-xl shadow-inner border border-slate-200/50">
-                                    <button
-                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${subcategoryLevel === 'L2' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
-                                        onClick={() => setSubcategoryLevel('L2')}
-                                        disabled={loading}
-                                    >
-                                        L2 Level
-                                    </button>
-                                    <button
-                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${subcategoryLevel === 'L3' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
-                                        onClick={() => setSubcategoryLevel('L3')}
-                                        disabled={loading}
-                                    >
-                                        L3 Level
-                                    </button>
-                                </div>
+                                <>
+                                    <div className="ml-2 flex items-center p-1 bg-slate-100/80 backdrop-blur-md rounded-xl shadow-inner border border-slate-200/50">
+                                        <button
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${subcategoryLevel === 'L2' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                            onClick={() => setSubcategoryLevel('L2')}
+                                            disabled={loading}
+                                        >
+                                            L2 Level
+                                        </button>
+                                        <button
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${subcategoryLevel === 'L3' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                            onClick={() => setSubcategoryLevel('L3')}
+                                            disabled={loading}
+                                        >
+                                            L3 Level
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 border-l border-slate-200 pl-4 ml-1">
+                                        <button
+                                            onClick={async () => {
+                                                setLoading(true);
+                                                try {
+                                                    const promises = brands.map(b => updateRelevance(b.name, true, token, activeModelId));
+                                                    await Promise.all(promises);
+                                                    setBrands(prev => prev.map(b => ({ ...b, status: 'included' })));
+                                                } catch (err) {
+                                                    console.error("Select all failed:", err);
+                                                } finally {
+                                                    setLoading(false);
+                                                }
+                                            }}
+                                            disabled={loading || brands.length === 0}
+                                            className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition"
+                                        >
+                                            Select All
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                setLoading(true);
+                                                try {
+                                                    const promises = brands.map(b => updateRelevance(b.name, false, token, activeModelId));
+                                                    await Promise.all(promises);
+                                                    setBrands(prev => prev.map(b => ({ ...b, status: 'excluded' })));
+                                                } catch (err) {
+                                                    console.error("Deselect all failed:", err);
+                                                } finally {
+                                                    setLoading(false);
+                                                }
+                                            }}
+                                            disabled={loading || brands.length === 0}
+                                            className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition"
+                                        >
+                                            Deselect All
+                                        </button>
+                                    </div>
+                                </>
                             )}
                         </>
                     )}
@@ -433,6 +474,13 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
             </PageHeader>
 
             {error && <div className="p-4 mb-6 bg-red-50 border border-red-200 text-red-700 rounded-lg">{error}</div>}
+
+            {currentPhase === 1 && !loading && brands.length > 0 && included.length === 0 && (
+                <div className="p-4 mb-6 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg flex items-center gap-3 animate-pulse">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                    <span className="font-bold">No subcategories selected!</span> Please select at least one subcategory to run the brand analysis.
+                </div>
+            )}
 
             {!activeModelId ? (
                 <div className="mt-8">

@@ -1194,11 +1194,15 @@ async def get_brand_exclusion_data(file_id: str, db: Session, model_id: Optional
     
     if db and model_id and cat_col:
         from .models import SubcategoryRelevanceMapping
-        db_relevance = db.query(SubcategoryRelevanceMapping).filter(
+        all_levels = df[cat_col].dropna().unique().tolist()
+        # Find subcategories explicitly marked as NOT relevant
+        db_excluded = db.query(SubcategoryRelevanceMapping).filter(
             SubcategoryRelevanceMapping.model_id == model_id,
-            SubcategoryRelevanceMapping.is_relevant == 1
+            SubcategoryRelevanceMapping.is_relevant == 0
         ).all()
-        relevant_levels = [r.subcategory for r in db_relevance]
+        excluded_levels = {r.subcategory for r in db_excluded}
+        # Relevant = All - Explicitly Excluded
+        relevant_levels = [lvl for lvl in all_levels if lvl not in excluded_levels]
     
     # If no relevance mappings found and we have model_id, 
     # it means Phase 1 hasn't been completed or all are de-selected.

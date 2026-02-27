@@ -6,7 +6,6 @@ dist
 .venv
 __pycache__
 *.pyc
-uploads
 
 # Secrets
 .env
@@ -19,15 +18,14 @@ backend/sql_app.db
 backend/data/
 backend/templates/
 
-# Data files
-data/h/raw_data/1.parquet
-data/h/raw_data/0.parquet
-data/h/raw_data/data_stack_aggregate_6jnTAdQteC.csv
-data/h/raw_data/0.parquet.manifest.json
-data/h/raw_data/2.parquet
-data/h/raw_data/1.parquet.manifest.json
-data/h/raw_data/data_stack_aggregate_6jnTAdQteC.csv.manifest.json
-data/h/raw_data/2.parquet.manifest.json
+# Data files (parquets, CSVs, manifests, uploads)
+data/
+uploads/
+*.parquet
+*.parquet.manifest.json
+
+# Test scripts
+test_discovery.py
 
 # Archives
 walmart-etl-eda-latest.zip
