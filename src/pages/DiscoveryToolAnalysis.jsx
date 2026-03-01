@@ -16,8 +16,8 @@ import { Target, Search, Loader2, Activity, TrendingUp, BarChart2, BarChart3, La
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // Skeleton shimmer cell — used to preserve layout during data loading
-const Sk = ({ w = 'w-20', h = 'h-4' }) => (
-    <div className={`${w} ${h} bg-slate-200 rounded animate-pulse inline-block`} />
+const Sk = ({ w = 'w-20', h = 'h-4', theme = 'light' }) => (
+    <div className={`${w} ${h} ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'} rounded skeleton-shimmer inline-block`} />
 );
 
 // Helper function to get color classes based on value for a premium look

@@ -34,7 +34,7 @@ export default function MediaTimeSeriesWithBounds({
             <div style={{ height: '220px', width: '100%' }}>
                 <ResponsiveContainer>
                     <LineChart data={data} margin={{ top: 10, right: 10, bottom: 20, left: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                         <XAxis
                             dataKey="date"
                             axisLine={false}

@@ -64,7 +64,7 @@ export default function GMVChart() {
                 <div style={{ height: '180px', width: '100%' }}>
                     <ResponsiveContainer>
                         <LineChart data={gmvData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                             <XAxis
                                 dataKey="date"
                                 axisLine={false}
@@ -91,7 +91,7 @@ export default function GMVChart() {
                 <div style={{ height: '180px', width: '100%' }}>
                     <ResponsiveContainer>
                         <LineChart data={gmvData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                             <XAxis
                                 dataKey="date"
                                 axisLine={false}

@@ -1234,14 +1234,24 @@ async def get_brand_exclusion_data(file_id: str, db: Session, model_id: Optional
             "warnings": ["No relevant subcategories selected in Phase 1."]
         }
 
-    # 2. Load Auxiliary Data
+    # 2. Load Auxiliary Data from Database
     exclude_flag_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "exclude_flag_automation"))
-    pb_path = os.path.join(exclude_flag_dir, "Private Brand.xlsx")
-    mi_path = os.path.join(exclude_flag_dir, "Mapping Issue Brand.xlsx")
     hist_path = os.path.join(exclude_flag_dir, "combined_output.json")
     
-    private_brand_df = pd.read_excel(pb_path) if os.path.exists(pb_path) else None
-    mapping_issue_df = pd.read_excel(mi_path) if os.path.exists(mi_path) else None
+    # Query database for Private Brands and Mapping Issues
+    from .models import PrivateBrand, MappingIssue
+    
+    active_pb = db.query(PrivateBrand).filter(PrivateBrand.is_active == True).all()
+    if active_pb:
+        private_brand_df = pd.DataFrame([{"BRAND": pb.brand_name} for pb in active_pb])
+    else:
+        private_brand_df = None
+        
+    active_mi = db.query(MappingIssue).filter(MappingIssue.is_active == True).all()
+    if active_mi:
+        mapping_issue_df = pd.DataFrame([{"BRAND": mi.brand_name} for mi in active_mi])
+    else:
+        mapping_issue_df = None
 
     # 3. Running Specialized Phase 2 Analysis
     # We identify the level (L2 or L3) based on Cat Col

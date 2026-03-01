@@ -73,7 +73,7 @@ export default function PageHeader({
                         />
                     )}
                     <div className="flex items-center gap-2">
-                        {phase && (
+                        {phase && phase !== 'EDA' && (
                             <span className={`tag tag-${phase.toLowerCase()}`}>{phase} Phase</span>
                         )}
                         {children}

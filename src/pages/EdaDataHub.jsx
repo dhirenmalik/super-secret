@@ -5,6 +5,7 @@ import steps from '../data/steps';
 import { uploadCsv, fetchLatestFile, getApiBaseUrl } from '../api/kickoff';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import ExcludeFlagConfig from '../components/ExcludeFlagConfig';
 
 const FILE_TYPES = [
     { id: 'exclude_flags', name: 'Exclude Flags Raw Data', category: 'exclude_flags_raw', description: 'Raw data for subcategory inclusion/exclusion analysis.' },
@@ -214,6 +215,8 @@ export default function EdaDataHub() {
                         Uploading a new file for a category will overwrite the previous version. Subsequent EDA steps will always use the latest version available here.
                     </div>
                 </motion.div>
+
+                <ExcludeFlagConfig />
             </div>
         </motion.div>
     );

@@ -149,7 +149,7 @@ export default function AgentInsights({
 
     if (isLoading) {
         return (
-            <div className="bg-white rounded-xl border border-indigo-100 shadow-sm overflow-hidden mb-6 animate-pulse">
+            <div className="bg-white rounded-xl border border-indigo-100 shadow-sm overflow-hidden mb-6 skeleton-shimmer">
                 <div className="bg-gradient-to-r from-indigo-50 to-slate-50 p-4 border-b border-indigo-100 flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-indigo-200"></div>
                     <div className="h-5 bg-indigo-200 rounded w-48"></div>

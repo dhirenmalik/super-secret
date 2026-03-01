@@ -106,9 +106,9 @@ function OadTable({ rows }) {
     );
 }
 
-// ─── Skeleton cell for loading state ──────────────────────────────────────────
-const Sk = ({ w = 'w-16', h = 'h-3.5' }) => (
-    <div className={`${w} ${h} bg-slate-200 rounded animate-pulse inline-block`} />
+// ─── Skeleton cell for loading state ──────────────────────────────────────────// Skeleton shimmer cell
+const Sk = ({ w = 'w-20', h = 'h-4' }) => (
+    <div className={`${w} ${h} bg-slate-200 rounded skeleton-shimmer inline-block`} />
 );
 
 // ─── Main ─────────────────────────────────────────────────────────────────────

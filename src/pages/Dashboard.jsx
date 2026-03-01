@@ -237,8 +237,8 @@ export default function Dashboard() {
                                             className="block group outline-none h-full"
                                         >
                                             <motion.div
-                                                whileHover={{ y: -4, scale: 1.01 }}
-                                                className={`bg-white rounded-2xl p-6 h-full border border-slate-200 border-t-4 ${borderClass} shadow-sm hover:shadow-xl transition-shadow relative overflow-hidden`}
+                                                whileHover={{ y: -4, scale: 1.05 }}
+                                                className={`bg-white rounded-2xl p-6 h-full border border-slate-200 border-t-4 ${borderClass} shadow-sm hover:shadow-2xl transition-shadow relative overflow-hidden`}
                                             >
                                                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-slate-50 to-transparent -z-0 rounded-bl-full"></div>
                                                 <div className="relative z-10">
@@ -322,8 +322,8 @@ export default function Dashboard() {
                                         className="block h-full outline-none"
                                     >
                                         <motion.div
-                                            whileHover={{ y: -4, scale: 1.01 }}
-                                            className="bg-white rounded-2xl p-6 h-full border border-slate-200 border-t-4 border-t-indigo-500 shadow-sm hover:shadow-xl transition-shadow relative overflow-hidden"
+                                            whileHover={{ y: -4, scale: 1.05 }}
+                                            className="bg-white rounded-2xl p-6 h-full border border-slate-200 border-t-4 border-t-indigo-500 shadow-sm hover:shadow-2xl transition-shadow relative overflow-hidden"
                                         >
                                             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-indigo-50/50 to-transparent -z-0 rounded-bl-full"></div>
                                             <div className="relative z-10">

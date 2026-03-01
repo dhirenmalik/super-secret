@@ -274,9 +274,9 @@ export default function BrandStacksCreation({ mode, overrideStepSlug }) {
                                     </div>
 
                                     <div className="space-y-2 opacity-50 pointer-events-none">
-                                        <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-widest pl-1">Aggregation Level <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded ml-1">Coming Soon</span></label>
+                                        <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-widest pl-1">Aggregation Level <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded ml-1">In Development</span></label>
                                         <select className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 shadow-sm appearance-none bg-slate-50">
-                                            <option value="weekly">Weekly</option>
+                                            <option value="weekly">National / Weekly</option>
                                         </select>
                                     </div>
 

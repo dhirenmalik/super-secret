@@ -6,7 +6,8 @@ from sqlalchemy import (
     Text,
     ForeignKey,
     Numeric,
-    DateTime
+    DateTime,
+    Boolean
 )
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -135,4 +136,23 @@ class DiscoveryAnalysisCache(Base):
     cache_id = Column(Integer, primary_key=True)
     model_id = Column(Integer, ForeignKey("models.model_id"), nullable=False, index=True)
     analysis_data = Column(Text) # Final discovery JSON (often 10MB+)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class PrivateBrand(Base):
+    __tablename__ = "private_brands"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    brand_name = Column(String(500), unique=True, index=True, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class MappingIssue(Base):
+    __tablename__ = "mapping_issues"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    brand_name = Column(String(500), index=True, nullable=False)
+    issue_description = Column(String(1000), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

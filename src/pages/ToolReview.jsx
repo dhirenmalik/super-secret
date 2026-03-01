@@ -13,7 +13,7 @@ import AgentInsights from '../components/discovery/AgentInsights';
 import MediaTacticsTable from '../components/discovery/MediaTacticsTable';
 import { Target, Search, Loader2, Activity, TrendingUp, BarChart2, Layers, Bot, FileText, Filter, RefreshCw } from 'lucide-react';
 
-const Sk = ({ h = "h-4", w = "w-full" }) => <div className={`${h} ${w} bg-slate-200 rounded animate-pulse`}></div>;
+const Sk = ({ h = "h-4", w = "w-full" }) => <div className={`${h} ${w} bg-slate-200 rounded skeleton-shimmer`}></div>;
 
 const step = steps.find((s) => s.slug === 'tool-review');
 
@@ -422,7 +422,7 @@ export default function ToolReview() {
                                     </svg>
                                 </div>
                                 <h3 className="text-lg font-bold text-rose-900 m-0 leading-none tracking-tight">Manual Data Adjustments</h3>
-                                {isLoadingData && <span className="text-xs text-slate-400 animate-pulse ml-auto">Loading stack data...</span>}
+                                {isLoadingData && <span className="text-xs text-slate-400 skeleton-shimmer w-32 h-4 inline-block rounded ml-auto"></span>}
                             </div>
                             <div className="p-6 space-y-5 bg-white">
                                 {error && (

@@ -248,3 +248,112 @@ async def get_brand_agg_analysis(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- Static Tabular Data API (Mapping Issues & Private Brands) ---
+
+@router.get("/mapping-issues", response_model=List[schemas.MappingIssueResponse])
+def get_mapping_issues(db: Session = Depends(get_db)):
+    return db.query(models.MappingIssue).all()
+
+@router.post("/mapping-issues", response_model=schemas.MappingIssueResponse)
+def create_mapping_issue(
+    payload: schemas.MappingIssueCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    issue = models.MappingIssue(**payload.dict())
+    db.add(issue)
+    try:
+        db.commit()
+        db.refresh(issue)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Brand name must be unique. Error: {str(e)}")
+    return issue
+
+@router.put("/mapping-issues/{issue_id}", response_model=schemas.MappingIssueResponse)
+def update_mapping_issue(
+    issue_id: int,
+    payload: schemas.MappingIssueUpdate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    issue = db.query(models.MappingIssue).filter(models.MappingIssue.id == issue_id).first()
+    if not issue:
+        raise HTTPException(status_code=404, detail="Mapping issue not found")
+    
+    update_data = payload.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(issue, key, value)
+        
+    db.commit()
+    db.refresh(issue)
+    return issue
+
+@router.delete("/mapping-issues/{issue_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_mapping_issue(
+    issue_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    issue = db.query(models.MappingIssue).filter(models.MappingIssue.id == issue_id).first()
+    if not issue:
+        raise HTTPException(status_code=404, detail="Mapping issue not found")
+    
+    db.delete(issue)
+    db.commit()
+    return None
+
+# Private Brands API
+@router.get("/private-brands", response_model=List[schemas.PrivateBrandResponse])
+def get_private_brands(db: Session = Depends(get_db)):
+    return db.query(models.PrivateBrand).all()
+
+@router.post("/private-brands", response_model=schemas.PrivateBrandResponse)
+def create_private_brand(
+    payload: schemas.PrivateBrandCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    pb = models.PrivateBrand(**payload.dict())
+    db.add(pb)
+    try:
+        db.commit()
+        db.refresh(pb)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Brand name must be unique. Error: {str(e)}")
+    return pb
+
+@router.put("/private-brands/{pb_id}", response_model=schemas.PrivateBrandResponse)
+def update_private_brand(
+    pb_id: int,
+    payload: schemas.PrivateBrandUpdate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    pb = db.query(models.PrivateBrand).filter(models.PrivateBrand.id == pb_id).first()
+    if not pb:
+        raise HTTPException(status_code=404, detail="Private brand not found")
+    
+    update_data = payload.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(pb, key, value)
+        
+    db.commit()
+    db.refresh(pb)
+    return pb
+
+@router.delete("/private-brands/{pb_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_private_brand(
+    pb_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    pb = db.query(models.PrivateBrand).filter(models.PrivateBrand.id == pb_id).first()
+    if not pb:
+        raise HTTPException(status_code=404, detail="Private brand not found")
+    
+    db.delete(pb)
+    db.commit()
+    return None

@@ -10,12 +10,12 @@
 /* ─── CSS Custom Properties ─────────────────────────── */
 :root {
   /* Curated Premium Colors */
-  --color-primary: #4f46e5;
-  /* Indigo 600 */
-  --color-primary-dark: #3730a3;
-  --color-primary-darker: #312e81;
-  --color-primary-light: #eef2ff;
-  --color-primary-glow: rgba(79, 70, 229, 0.2);
+  --color-primary: #2563eb;
+  /* Blue 600 */
+  --color-primary-dark: #1d4ed8;
+  --color-primary-darker: #1e3a8a;
+  --color-primary-light: #dbeafe;
+  --color-primary-glow: rgba(37, 99, 235, 0.2);
 
   --color-secondary: #0ea5e9;
   --color-secondary-light: #e0f2fe;
@@ -24,8 +24,8 @@
   --color-surface: #f8fafc;
   /* Tailwind slate-50 */
   --color-card: #FFFFFF;
-  --color-text: #0f172a;
-  /* Tailwind slate-900 */
+  --color-text: #334155;
+  /* Tailwind slate-700 */
   --color-text-muted: #475569;
   /* Tailwind slate-600 */
   --color-text-light: #94a3b8;
@@ -99,7 +99,7 @@ html {
 }
 
 body {
-  font-family: "Space Grotesk", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", "Space Grotesk", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   color: var(--color-text);
   background: var(--color-surface);
   /* Clean, modern light slate */
@@ -120,7 +120,8 @@ button,
   background: none;
   font-family: inherit;
   font-size: inherit;
-  transition: all var(--transition-fast);
+  transition: all 200ms ease;
+  border-radius: 6px;
 }
 
 button:not(:disabled):hover,
@@ -164,7 +165,8 @@ button:not(:disabled):hover,
   left: 0;
   width: var(--sidebar-width);
   height: 100vh;
-  background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
+  background: var(--color-sidebar-bg);
+  /* Enforced Deep Slate #0F172A */
   color: var(--color-sidebar-text);
   display: flex;
   flex-direction: column;
@@ -280,11 +282,11 @@ button:not(:disabled):hover,
 
 .sidebar-phase-label {
   padding: 20px 20px 8px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  color: rgba(255, 255, 255, 0.3);
+  color: #94a3b8;
 }
 
 .sidebar-nav {
@@ -296,9 +298,9 @@ button:not(:disabled):hover,
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 20px;
-  margin: 2px 10px;
-  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  margin: 12px 10px;
+  border-radius: var(--radius-sm);
   color: var(--color-sidebar-text);
   font-size: 13.5px;
   font-weight: 500;
@@ -320,7 +322,7 @@ button:not(:disabled):hover,
 }
 
 .sidebar-nav-item.active {
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(79, 70, 229, 0.1));
+  background: rgba(37, 99, 235, 0.1);
   color: #FFFFFF;
   font-weight: 600;
 }
@@ -328,13 +330,12 @@ button:not(:disabled):hover,
 .sidebar-nav-item.active::before {
   content: '';
   position: absolute;
-  left: -10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 24px;
-  background: var(--color-primary);
-  border-radius: 0 var(--radius-full) var(--radius-full) 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #2563eb;
+  border-radius: 0 4px 4px 0;
 }
 
 .sidebar-step-number {
@@ -640,7 +641,7 @@ button:not(:disabled):hover,
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-full);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1106,6 +1107,7 @@ button:not(:disabled):hover,
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  line-height: 1.5;
 }
 
 .table th {
@@ -1421,4 +1423,26 @@ button:not(:disabled):hover,
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-light);
+}
+
+/* ─── Skeleton Loaders ──────────────────────────────── */
+.skeleton-shimmer {
+  background: #f1f5f9;
+  background-image: linear-gradient(90deg,
+      #f1f5f9 0px,
+      #f8fafc 40px,
+      #f1f5f9 80px);
+  background-size: 600px;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: var(--radius-md);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -300px;
+  }
+
+  100% {
+    background-position: 300px;
+  }
 }

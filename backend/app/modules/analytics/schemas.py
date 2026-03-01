@@ -299,3 +299,45 @@ class AnomalyInsightsRequest(BaseModel):
 
 class AnomalyInsightsResponse(BaseModel):
     agent_insights: str
+
+# Mapping Issues
+class MappingIssueBase(BaseModel):
+    brand_name: str
+    issue_description: Optional[str] = None
+    is_active: bool = True
+
+class MappingIssueCreate(MappingIssueBase):
+    pass
+
+class MappingIssueUpdate(BaseModel):
+    brand_name: Optional[str] = None
+    issue_description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class MappingIssueResponse(MappingIssueBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Private Brands
+class PrivateBrandBase(BaseModel):
+    brand_name: str
+    is_active: bool = True
+
+class PrivateBrandCreate(PrivateBrandBase):
+    pass
+
+class PrivateBrandUpdate(BaseModel):
+    brand_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class PrivateBrandResponse(PrivateBrandBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

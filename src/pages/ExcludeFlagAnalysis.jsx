@@ -413,39 +413,23 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
                                     <div className="flex items-center gap-2 border-l border-slate-200 pl-4 ml-1">
                                         <button
                                             onClick={async () => {
+                                                const currentAllSelected = brands.length > 0 && brands.every(b => b.status === 'included');
                                                 setLoading(true);
                                                 try {
-                                                    const promises = brands.map(b => updateRelevance(b.name, true, token, activeModelId));
+                                                    const targetStatus = !currentAllSelected;
+                                                    const promises = brands.map(b => updateRelevance(b.name, targetStatus, token, activeModelId));
                                                     await Promise.all(promises);
-                                                    setBrands(prev => prev.map(b => ({ ...b, status: 'included' })));
+                                                    setBrands(prev => prev.map(b => ({ ...b, status: targetStatus ? 'included' : 'excluded' })));
                                                 } catch (err) {
-                                                    console.error("Select all failed:", err);
+                                                    console.error("Toggle all failed:", err);
                                                 } finally {
                                                     setLoading(false);
                                                 }
                                             }}
                                             disabled={loading || brands.length === 0}
-                                            className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition"
+                                            className="px-4 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition"
                                         >
-                                            Select All
-                                        </button>
-                                        <button
-                                            onClick={async () => {
-                                                setLoading(true);
-                                                try {
-                                                    const promises = brands.map(b => updateRelevance(b.name, false, token, activeModelId));
-                                                    await Promise.all(promises);
-                                                    setBrands(prev => prev.map(b => ({ ...b, status: 'excluded' })));
-                                                } catch (err) {
-                                                    console.error("Deselect all failed:", err);
-                                                } finally {
-                                                    setLoading(false);
-                                                }
-                                            }}
-                                            disabled={loading || brands.length === 0}
-                                            className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition"
-                                        >
-                                            Deselect All
+                                            {(brands.length > 0 && brands.every(b => b.status === 'included')) ? 'Deselect All' : 'Select All'}
                                         </button>
                                     </div>
                                 </>

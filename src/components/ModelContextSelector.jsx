@@ -40,7 +40,7 @@ export default function ModelContextSelector({
                 </span>
                 <span className="text-sm font-extrabold text-slate-800 truncate max-w-[200px]">
                     {isLoading ? (
-                        <div className="h-4 w-24 bg-slate-200 animate-pulse rounded" />
+                        <div className="h-4 w-24 bg-slate-200 skeleton-shimmer rounded" />
                     ) : (
                         modelName
                     )}

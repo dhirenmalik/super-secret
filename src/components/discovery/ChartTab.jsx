@@ -11,7 +11,7 @@ import {
     Filler
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { AlertCircle, Maximize2, Minimize2, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertCircle, Maximize2, Minimize2, ChevronLeft, ChevronRight } from 'lucide-react';
 import MultiSelectDropdown from '../common/MultiSelectDropdown';
 
 ChartJS.register(
@@ -34,10 +34,6 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
     const [isFullscreen, setIsFullscreen] = useState(false);
     const chartContainerRef = useRef(null);
     const chartRef = useRef(null);
-
-    // Timeline Animation State
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [playbackIndex, setPlaybackIndex] = useState(0);
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -162,37 +158,8 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
         if (dateRange.start) data = data.filter(d => d.date >= dateRange.start);
         if (dateRange.end) data = data.filter(d => d.date <= dateRange.end);
 
-        // Apply playback truncation if playing
-        if (isPlaying || playbackIndex > 0) {
-            // we show data UP TO the playback index
-            const visibleCount = Math.max(1, Math.min(playbackIndex, data.length));
-            data = data.slice(0, visibleCount);
-        }
-
         return data;
-    }, [chartData, dateRange, hasData, isPlaying, playbackIndex]);
-
-
-    // Playback Effect
-    useEffect(() => {
-        let interval;
-        if (isPlaying && hasData) {
-            // max index based on non-date-filtered data if we want full playback, 
-            // but let's base it on the full timeline for simplicity.
-            const maxIndex = chartData.time_series.length;
-
-            interval = setInterval(() => {
-                setPlaybackIndex((prev) => {
-                    if (prev >= maxIndex) {
-                        setIsPlaying(false);
-                        return prev;
-                    }
-                    return prev + 1; // Increase visible points by 1 (e.g. 1 month/week)
-                });
-            }, 300); // 300ms per point
-        }
-        return () => clearInterval(interval);
-    }, [isPlaying, hasData, chartData]);
+    }, [chartData, dateRange, hasData]);
 
     // Format Data for ChartJS
     const chartRenderData = useMemo(() => {
@@ -202,7 +169,7 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
 
         // Define premium enterprise colors (expanded palette for multi-metric charts)
         const colors = [
-            'rgb(99, 102, 241)',  // Indigo 500
+            '#2563EB',           // Blue 600 (Primary)
             'rgb(20, 184, 166)',  // Teal 500
             'rgb(245, 158, 11)', // Amber 500
             'rgb(239, 68, 68)',  // Red 500
@@ -212,7 +179,7 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
             'rgb(14, 165, 233)', // Sky 500
         ];
         const bgColors = [
-            'rgba(99, 102, 241, 0.08)',
+            'rgba(37, 99, 235, 0.08)',
             'rgba(20, 184, 166, 0.08)',
             'rgba(245, 158, 11, 0.08)',
             'rgba(239, 68, 68, 0.08)',
@@ -430,40 +397,66 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
                     maxTicksLimit: 30
                 },
                 grid: {
-                    color: '#f1f5f9',
+                    color: '#e5e7eb', // Neutral Grey Grid
                     borderDash: [3, 3]
                 }
             }
         };
 
+        const hasUnits = selectedCols.some(c => c === 'O_UNIT' || c === 'O_SALE');
+        const hasSpends = selectedCols.some(c => c.includes('SPEND') || c === 'Total_spends');
+        const hasImps = selectedCols.some(c => c.includes('IMP') || c.includes('CLK'));
+
         if (chartType === 'dual_line') {
-            scales['y'] = {
-                type: 'linear',
-                display: true,
-                position: 'left',
-                title: { display: true, text: 'Units / Sales' },
-                grid: { drawOnChartArea: true, color: '#f1f5f9' }
-            };
-            scales['y-spend'] = {
-                type: 'linear',
-                display: true,
-                position: 'right',
-                title: { display: true, text: 'Spend / Cost' },
-                grid: { drawOnChartArea: false }
-            };
-            scales['y-imp'] = {
-                type: 'linear',
-                display: true,
-                position: 'right',
-                title: { display: true, text: 'Impressions / Clicks' },
-                grid: { drawOnChartArea: false }
-            };
+            if (hasUnits) {
+                // Units vs [X]
+                scales['y'] = {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: { display: true, text: 'Units' },
+                    grid: { drawOnChartArea: true, color: '#e5e7eb' }
+                };
+                scales['y-spend'] = {
+                    type: 'linear',
+                    display: hasSpends,
+                    position: 'right',
+                    title: { display: true, text: 'Spends' },
+                    grid: { drawOnChartArea: false }
+                };
+                scales['y-imp'] = {
+                    type: 'linear',
+                    display: hasImps && !hasSpends, // Show Imps title only if Spend isn't dominating
+                    position: 'right',
+                    title: { display: true, text: 'Impressions' },
+                    grid: { drawOnChartArea: false }
+                };
+            } else {
+                // Spends vs Imps (No Units)
+                scales['y-imp'] = {
+                    type: 'linear',
+                    display: hasImps,
+                    position: 'left',
+                    title: { display: true, text: 'Impressions' },
+                    grid: { drawOnChartArea: true, color: '#e5e7eb' }
+                };
+                scales['y-spend'] = {
+                    type: 'linear',
+                    display: hasSpends,
+                    position: 'right',
+                    title: { display: true, text: 'Spends' },
+                    grid: { drawOnChartArea: false }
+                };
+                scales['y'] = {
+                    display: false
+                };
+            }
         } else {
             scales.y = {
                 type: 'linear',
                 beginAtZero: true,
                 grid: {
-                    color: '#f1f5f9',
+                    color: '#e5e7eb',
                     borderDash: [3, 3]
                 },
                 ticks: {
@@ -699,51 +692,10 @@ export default function ChartTab({ chartData, activeTacticFilter, anomaliesTable
                     <Line ref={chartRef} data={chartRenderData} options={chartOptions} />
                 ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
-                        <div className="animate-pulse bg-slate-100 w-full h-full rounded-lg absolute inset-4 border-2 border-dashed border-slate-200"></div>
+                        <div className="skeleton-shimmer bg-slate-100 w-full h-full rounded-lg absolute inset-4 border-2 border-dashed border-slate-200"></div>
                         <span className="relative z-10 font-medium bg-white px-4 py-2 rounded-full shadow-sm text-sm">Select metrics to visualize</span>
                     </div>
                 )}
-            </div>
-
-            {/* Timeline Playback Controls */}
-            <div className="bg-slate-50 border-t border-slate-200 px-6 py-3 flex items-center gap-4 shrink-0 shadow-inner">
-                <button
-                    onClick={() => {
-                        if (playbackIndex >= (chartData.time_series?.length || 0)) {
-                            // Reset if at end
-                            setPlaybackIndex(0);
-                        }
-                        setIsPlaying(!isPlaying);
-                    }}
-                    className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md transition-colors shadow-indigo-200"
-                >
-                    {isPlaying ? <Pause size={18} /> : <Play size={18} className="translate-x-[1px]" />}
-                </button>
-
-                <div className="flex-1">
-                    <input
-                        type="range"
-                        min="0"
-                        max={chartData.time_series ? chartData.time_series.length : 100}
-                        value={playbackIndex || (chartData.time_series?.length || 100)}
-                        onChange={(e) => {
-                            setIsPlaying(false);
-                            setPlaybackIndex(parseInt(e.target.value, 10));
-                        }}
-                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700"
-                    />
-                    <div className="flex justify-between mt-1 px-1">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                            {chartData.time_series && chartData.time_series[0] ? chartData.time_series[0].date : 'Start'}
-                        </span>
-                        <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded shadow-sm">
-                            {filteredData.length > 0 ? filteredData[filteredData.length - 1].date : 'Timeline'}
-                        </span>
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                            {chartData.time_series && chartData.time_series.length > 0 ? chartData.time_series[chartData.time_series.length - 1].date : 'End'}
-                        </span>
-                    </div>
-                </div>
             </div>
 
         </div>

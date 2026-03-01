@@ -32,7 +32,7 @@ export default function ResponseCurveChart({
             <div style={{ height: '220px', width: '100%' }}>
                 <ResponsiveContainer>
                     <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                         <XAxis
                             type="number"
                             dataKey="x"

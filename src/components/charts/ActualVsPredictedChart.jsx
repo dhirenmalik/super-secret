@@ -59,7 +59,7 @@ export default function ActualVsPredictedChart({ height = 400 }) {
                     data={comparisonData}
                     margin={{ top: 5, right: 30, left: 40, bottom: 20 }}
                 >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                     <XAxis
                         dataKey="date"
                         axisLine={false}
