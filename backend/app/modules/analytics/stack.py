@@ -329,9 +329,11 @@ async def build_stack_process(db: Session, exclude_file_id: int, stack_type: str
     # Read all dynamically located parquet parts
     for file_name, parquet_path in latest_parquets.items():
         try:
-            if os.path.exists(parquet_path):
-                print(f"[STACK] Processing {file_name} from {parquet_path}")
-                df_daily = pd.read_parquet(parquet_path, columns=get_key_list())
+            from app.core import storage as file_storage
+            if file_storage.file_exists(parquet_path):
+                local_path = file_storage.ensure_local_file(parquet_path)
+                print(f"[STACK] Processing {file_name} from {local_path}")
+                df_daily = pd.read_parquet(local_path, columns=get_key_list())
                 agg = generate_filtered_agg_brand_and_avg_brand_else(df_daily, setup)
                 agg_brands.append(agg)
             else:

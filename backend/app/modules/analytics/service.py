@@ -156,12 +156,15 @@ def load_data(file_id: str) -> pd.DataFrame:
         except FileNotFoundError:
             pass
 
-    if not saved_path or not os.path.exists(saved_path):
+    if not saved_path or not file_storage.file_exists(saved_path):
         raise FileNotFoundError(f"Source file not found for: {file_id}")
 
-    if str(saved_path).lower().endswith(".parquet"):
-        return pd.read_parquet(saved_path)
-    return pd.read_csv(saved_path)
+    # Ensure the file is available locally (downloads from S3/Azure if needed)
+    local_path = file_storage.ensure_local_file(saved_path)
+
+    if str(local_path).lower().endswith(".parquet"):
+        return pd.read_parquet(local_path)
+    return pd.read_csv(local_path)
 
 def get_persisted_result(db: Session, file_id: int, result_type: str) -> Optional[Dict[str, Any]]:
     """Retrieves a persisted analytical result from the database."""
@@ -248,7 +251,8 @@ async def handle_file_upload(db: Session, file: UploadFile, user_id: int, catego
     row_count = 0
     if metadata["file_name"].lower().endswith(".csv"):
         try:
-            df = pd.read_csv(metadata["file_path"])
+            local_path = file_storage.ensure_local_file(metadata["file_path"])
+            df = pd.read_csv(local_path)
             row_count = len(df)
         except Exception as e:
             print(f"[WARNING] Failed to calculate row count: {e}")
@@ -427,9 +431,9 @@ def delete_file_record(db: Session, file_id: int):
         return False
     
     # Delete physical file if possible
-    if db_file.file_path and os.path.exists(db_file.file_path):
+    if db_file.file_path and file_storage.file_exists(db_file.file_path):
         try:
-            os.remove(db_file.file_path)
+            file_storage.delete_file(db_file.file_path)
         except Exception as e:
             print(f"[WARNING] Failed to delete physical file: {e}")
             
@@ -938,7 +942,7 @@ async def get_exclude_analysis_data(db: Session, model_id: Optional[int] = None,
 
     print(f"[DEBUG] No persisted result found. Loading from file...")
     try:
-        if not latest or not os.path.exists(latest.file_path):
+        if not latest or not file_storage.file_exists(latest.file_path):
             print(f"[DEBUG] No latest file or file missing. Checking EDA_DATA_PATH: {EDA_DATA_PATH}")
             if os.path.exists(EDA_DATA_PATH):
                 df = pd.read_csv(EDA_DATA_PATH)
@@ -946,8 +950,9 @@ async def get_exclude_analysis_data(db: Session, model_id: Optional[int] = None,
                 print(f"[DEBUG] EDA_DATA_PATH missing. Returning empty data.")
                 return {"data": []}
         else:
-            print(f"[DEBUG] Reading from latest file: {latest.file_path}")
-            df = pd.read_csv(latest.file_path)
+            local_path = file_storage.ensure_local_file(latest.file_path)
+            print(f"[DEBUG] Reading from latest file: {local_path}")
+            df = pd.read_csv(local_path)
     except Exception as e:
         print(f"[ERROR] Failed to load data for exclude analysis: {e}")
         return {"data": []}
