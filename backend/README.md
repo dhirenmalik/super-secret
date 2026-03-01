@@ -10,8 +10,10 @@ This is the FastAPI backend for the Walmart ML Governance tool.
 
 ## Installation & Startup
 
-1. Install dependencies:
+1. Install dependencies via Conda (Python 3.12 recommended):
    ```bash
+   conda create -n py312 python=3.12 -y
+   conda activate py312
    pip install -r requirements.txt
    ```
 
