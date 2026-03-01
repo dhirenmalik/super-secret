@@ -14,7 +14,7 @@ from app.core.database import SessionLocal
 from app.core import storage as file_storage
 from . import schemas, models
 from .models import DiscoveryStack, DiscoveryStackData
-from app.exclude_flag_automation.Exclude_Flag_function import exclude_flag_automation_function
+from app.modules.analytics.exclude_flag_automation.Exclude_Flag_function import exclude_flag_automation_function
 
 # ==========================================================
 # CONSTANTS & PATHS

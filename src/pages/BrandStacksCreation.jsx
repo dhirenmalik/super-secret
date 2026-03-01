@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import TaskList from '../components/TaskList';
 import AutomationNote from '../components/AutomationNote';
@@ -16,6 +17,8 @@ export default function BrandStacksCreation({ mode, overrideStepSlug }) {
     const stepSlug = overrideStepSlug || 'brand-stacks-creation';
     const step = steps.find((s) => s.slug === stepSlug);
     const { token } = useAuth();
+    const location = useLocation();
+
     const [isBuilding, setIsBuilding] = useState(false);
     const [buildResult, setBuildResult] = useState(null);
     const [error, setError] = useState(null);
@@ -24,6 +27,15 @@ export default function BrandStacksCreation({ mode, overrideStepSlug }) {
     const [models, setModels] = useState([]);
     const [activeModelId, setActiveModelId] = useState(localStorage.getItem('active_model_id') || '');
     const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+    // Force Dashboard View on Sidebar Navigation
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        if (searchParams.get('dashboard') === 'true') {
+            setActiveModelId('');
+            localStorage.removeItem('active_model_id');
+        }
+    }, [location.search]);
 
     // Add effect to find the active model object
     const activeModel = useMemo(() => {

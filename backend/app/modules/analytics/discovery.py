@@ -10,7 +10,6 @@ import os
 
 from app.core.database import get_db
 from app.core.rbac import get_current_user
-from app.modules.governance.models import Model
 from app.modules.analytics import models
 from app.modules.analytics.models import DiscoveryStack, DiscoveryStackData, DiscoveryAnalysisCache
 
@@ -597,11 +596,11 @@ async def fetch_discovery_data_api(model_id: int, force_refresh: bool = False, d
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) -> Dict[str, Any]:
+    from app.modules.governance.models import Model
     """
     Fetches the `aggbrand_modelingstack.csv` for the given model_id, runs anomaly detection,
     and returns chart time-series data and anomalies table.
     """
-    from app.modules.governance.models import Model
     
     # 0. Check for DB-backed Cache
     if not force_refresh:
@@ -918,10 +917,46 @@ def get_discovery_data(db: Session, model_id: int, force_refresh: bool = False) 
 
     # 3. Extract Metadata
     subcategories = "Mixed"
-    l2_list = db_metadata.get("l2_list", [])
+    l2_list = []
     
-    if l2_list:
-        subcategories = ", ".join(l2_list)
+    # Try getting the definitive relevant list from explicit exclusions and raw data
+    try:
+        from app.modules.analytics.models import SubcategoryRelevanceMapping
+        from app.modules.analytics.service import get_latest_file_record, load_data
+        
+        # 1. Get explicitly excluded levels
+        db_excluded = db.query(SubcategoryRelevanceMapping).filter(
+            SubcategoryRelevanceMapping.model_id == model_id,
+            SubcategoryRelevanceMapping.is_relevant == 0
+        ).all()
+        excluded_levels = {r.subcategory for r in db_excluded}
+        print(f"[DEBUG DISCOVERY] Excluded levels for model {model_id}: {excluded_levels}")
+        
+        # 2. Get all possible levels from the raw file
+        latest_file = get_latest_file_record(db, category="exclude_flags_raw", model_id=model_id)
+        if latest_file:
+            print(f"[DEBUG DISCOVERY] Found latest_file: {latest_file.file_id}, path: {latest_file.file_path}")
+            raw_df = load_data(latest_file.file_id)
+            cols_upper = {c.upper(): c for c in raw_df.columns}
+            # The user specifically requested L2-based subcategories to be shown
+            cat_col = cols_upper.get("L2") or cols_upper.get("CATEGORY") or cols_upper.get("L3")
+            print(f"[DEBUG DISCOVERY] cat_col resolved: {cat_col}")
+            if cat_col:
+                all_levels = raw_df[cat_col].dropna().unique().tolist()
+                print(f"[DEBUG DISCOVERY] all_levels: {all_levels}")
+                l2_list = sorted([lvl for lvl in all_levels if lvl not in excluded_levels])
+                if l2_list:
+                    subcategories = ", ".join(l2_list)
+                    print(f"[DEBUG DISCOVERY] Final subcategories: {subcategories}")
+        else:
+            print(f"[DEBUG DISCOVERY] No latest_file found for model {model_id}")
+    except Exception as e:
+        print(f"[WARNING] Could not calculate subcategory list from mappings: {e}")
+
+    if not l2_list:
+        l2_list = db_metadata.get("l2_list", [])
+        if l2_list:
+            subcategories = ", ".join(l2_list)
 
     if not l2_list:
         metadata_path = os.path.join(project_dir, "stack_metadata.json")

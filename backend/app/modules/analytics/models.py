@@ -3,6 +3,7 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
+    Text,
     ForeignKey,
     Numeric,
     DateTime
@@ -133,5 +134,5 @@ class DiscoveryAnalysisCache(Base):
     __tablename__ = "discovery_analysis_cache"
     cache_id = Column(Integer, primary_key=True)
     model_id = Column(Integer, ForeignKey("models.model_id"), nullable=False, index=True)
-    analysis_data = Column(String(1000000)) # Final discovery JSON
+    analysis_data = Column(Text) # Final discovery JSON (often 10MB+)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

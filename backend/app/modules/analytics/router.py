@@ -204,10 +204,11 @@ async def get_built_stack(
 @router.get("/eda/discovery/{model_id}", response_model=schemas.DiscoveryChartResponse)
 async def get_discovery_analysis(
     model_id: int,
+    refresh: bool = False,
     db: Session = Depends(get_db)
 ):
     try:
-        return discovery.get_discovery_data(db, model_id, force_refresh=True)
+        return discovery.get_discovery_data(db, model_id, force_refresh=refresh)
     except HTTPException:
         raise
     except Exception as e:

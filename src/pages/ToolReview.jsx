@@ -64,7 +64,8 @@ export default function ToolReview() {
         setIsLoadingDiscovery(true);
         setDiscoveryError(null);
         try {
-            const response = await fetch(`${getApiBaseUrl()}/api/v1/eda/discovery/${modelId}`, {
+            const cb = new Date().getTime();
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/eda/discovery/${modelId}?_cb=${cb}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!response.ok) {

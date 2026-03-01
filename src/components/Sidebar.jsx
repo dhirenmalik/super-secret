@@ -103,20 +103,27 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                                     </div>
                                 )}
                                 <div style={{ height: isPhaseCollapsed && !isCollapsed ? '0' : 'auto', overflow: 'hidden', transition: 'height 0.3s ease' }}>
-                                    {phaseSteps.map((step) => (
-                                        <NavLink
-                                            key={step.id}
-                                            to={`/step/${step.slug}`}
-                                            className={({ isActive }) =>
-                                                `sidebar-nav-item ${isActive ? 'active' : ''}`
-                                            }
-                                            onClick={closeMobile}
-                                            title={isCollapsed ? step.name : ""}
-                                        >
-                                            <span className="sidebar-step-number">{step.id}</span>
-                                            {!isCollapsed && step.name}
-                                        </NavLink>
-                                    ))}
+                                    {phaseSteps.map((step) => {
+                                        // Always append ?dashboard=true for the main tool pages so they reset their model selection state
+                                        const path = ['exclude-flag-analysis', 'brand-stacks-creation', 'discovery-tool-analysis', 'eda-email-report'].includes(step.slug)
+                                            ? `/step/${step.slug}?dashboard=true`
+                                            : `/step/${step.slug}`;
+
+                                        return (
+                                            <NavLink
+                                                key={step.id}
+                                                to={path}
+                                                className={({ isActive }) =>
+                                                    `sidebar-nav-item ${isActive ? 'active' : ''}`
+                                                }
+                                                onClick={closeMobile}
+                                                title={isCollapsed ? step.name : ""}
+                                            >
+                                                <span className="sidebar-step-number">{step.id}</span>
+                                                {!isCollapsed && step.name}
+                                            </NavLink>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         );

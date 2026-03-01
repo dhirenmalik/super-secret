@@ -95,6 +95,7 @@ html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -112,12 +113,19 @@ a {
   color: inherit;
 }
 
-button {
+button,
+.interactive-element {
   cursor: pointer;
   border: none;
   background: none;
   font-family: inherit;
   font-size: inherit;
+  transition: all var(--transition-fast);
+}
+
+button:not(:disabled):hover,
+.interactive-element:not(:disabled):hover {
+  filter: brightness(0.97);
 }
 
 /* ─── Layout ────────────────────────────────────────── */
@@ -464,12 +472,13 @@ button {
 }
 
 .hover-lift {
-  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal), background-color var(--transition-fast);
 }
 
 .hover-lift:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
 }
 
 /* ─── Cards ─────────────────────────────────────────── */

@@ -4,11 +4,11 @@ import AutomationNote from '../components/AutomationNote';
 import StatusBadge from '../components/StatusBadge';
 import steps from '../data/steps';
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import ModelGallery from '../components/ModelGallery';
 import { useAuth } from '../context/AuthContext';
 import { getApiBaseUrl } from '../api/kickoff';
 import { updateStageStatus } from '../api/eda';
-
 
 const mockTables = [
     'Sales Summary by Category',
@@ -23,11 +23,22 @@ export default function EdaEmailReport({ mode, overrideStepSlug }) {
     const stepSlug = overrideStepSlug || 'eda-email-report';
     const step = steps.find((s) => s.slug === stepSlug);
     const { token } = useAuth();
+    const location = useLocation();
+
     const [generating, setGenerating] = useState(false);
     const [generated, setGenerated] = useState(false);
     const [models, setModels] = useState([]);
     const [activeModelId, setActiveModelId] = useState(localStorage.getItem('active_model_id') || '');
     const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+    // Force Dashboard View on Sidebar Navigation
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        if (searchParams.get('dashboard') === 'true') {
+            setActiveModelId('');
+            localStorage.removeItem('active_model_id');
+        }
+    }, [location.search]);
 
     useEffect(() => {
         loadModels();

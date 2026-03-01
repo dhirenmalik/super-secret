@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import TaskList from '../components/TaskList';
 import AutomationNote from '../components/AutomationNote';
@@ -17,6 +18,7 @@ import ModelGallery from '../components/ModelGallery';
 
 export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug = null }) {
     const { token } = useAuth();
+    const location = useLocation();
     const stepSlug = overrideStepSlug || 'exclude-flag-analysis';
     const step = steps.find((s) => s.slug === stepSlug);
 
@@ -32,6 +34,15 @@ export default function ExcludeFlagAnalysis({ mode = 'modeler', overrideStepSlug
     const [models, setModels] = useState([]);
     const [activeModelId, setActiveModelId] = useState(localStorage.getItem('active_model_id') || '');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Force Dashboard View on Sidebar Navigation
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        if (searchParams.get('dashboard') === 'true') {
+            setActiveModelId('');
+            localStorage.removeItem('active_model_id'); // Optional: enforce strict clearing
+        }
+    }, [location.search]);
 
     // Unified filter state
     const [filters, setFilters] = useState({

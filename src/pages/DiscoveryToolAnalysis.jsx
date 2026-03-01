@@ -13,7 +13,7 @@ import AgentInsights from '../components/discovery/AgentInsights';
 import ChartTab from '../components/discovery/ChartTab';
 import { updateStageStatus } from '../api/eda';
 import { Target, Search, Loader2, Activity, TrendingUp, BarChart2, BarChart3, Layers, ArrowRight, Bot, Layout, FileText } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 // Skeleton shimmer cell — used to preserve layout during data loading
 const Sk = ({ w = 'w-20', h = 'h-4' }) => (
@@ -53,6 +53,7 @@ export default function DiscoveryToolAnalysis({ mode, overrideStepSlug }) {
     const [severityFilter, setSeverityFilter] = useState('All');
     const [chartTabActive, setChartTabActive] = useState('units_trend');
     const navigate = useNavigate();
+    const location = useLocation();
 
     const CHART_TABS = [
         { key: 'units_trend', label: 'Units Trend' },
@@ -67,6 +68,15 @@ export default function DiscoveryToolAnalysis({ mode, overrideStepSlug }) {
     const activeModel = React.useMemo(() => {
         return models.find(m => m.model_id.toString() === activeModelId);
     }, [models, activeModelId]);
+
+    // Force Dashboard View on Sidebar Navigation
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        if (searchParams.get('dashboard') === 'true') {
+            setActiveModelId('');
+            localStorage.removeItem('active_model_id');
+        }
+    }, [location.search]);
 
     // Reset L2 selection whenever a new model is loaded
     useEffect(() => {
@@ -296,7 +306,8 @@ export default function DiscoveryToolAnalysis({ mode, overrideStepSlug }) {
         setIsLoadingDiscovery(true);
         setDiscoveryError(null);
         try {
-            const response = await fetch(`${getApiBaseUrl()}/api/v1/eda/discovery/${modelId}`, {
+            const cb = new Date().getTime();
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/eda/discovery/${modelId}?_cb=${cb}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!response.ok) {
